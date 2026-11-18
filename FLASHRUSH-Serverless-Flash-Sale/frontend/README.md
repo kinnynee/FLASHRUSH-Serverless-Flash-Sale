@@ -24,8 +24,20 @@ Open the local URL printed by Vite. `npm run build` checks TypeScript and produc
 | `/products/:productId` | Developer 1 — gallery, stock, colors, quantity, related products |
 | `/checkout` | Developer 2 — currently a neutral integration notice only |
 | `/orders` | Developer 2 — currently a neutral integration notice only |
+| `/admin` | Admin Dashboard demo với KPI, tồn kho và đơn hàng chỉ đọc |
+| `/admin/products` | Danh sách sản phẩm của phiên Admin demo |
+| `/admin/orders` | Danh sách đơn hàng của phiên Admin demo |
+| `/admin/monitoring` | Cloud Console demo cho Order, SQS, Lambda và alerts |
 
 Search/filter state is encoded in `q`, `category`, `min`, `max`, `sort` URL parameters. Sort values: `discount`, `price-asc`, `price-desc`, `popular`. Search accepts Vietnamese with or without accents. Filters combine, price bounds are inclusive. Invalid product IDs and unknown routes have recovery links.
+
+## Admin and monitoring demo
+
+Open `/admin` to review the read-only Admin Dashboard and `/admin/monitoring` to open the observability view. Both pages are labelled as simulation data and do not connect to AWS, use AWS credentials, change stock, replay queue messages or edit orders.
+
+The default scenario is **Cảnh báo DLQ**, a fixed snapshot with 100 accepted requests, 10 confirmed orders, 88 out-of-stock orders and 2 failed orders. The Monitoring page has controlled scenarios for normal operation, an empty session and a loading error. Its refresh control reloads the selected snapshot without generating random values. Product inventory is derived from the same confirmed mock orders used by the KPI cards.
+
+`src/services/dashboardService.ts` exposes the dashboard service abstraction. `mockDashboardService.ts` is active. `httpDashboardService.ts` is an integration seam only because the documented MVP contract has no protected dashboard endpoint.
 
 ## Mock behavior
 
