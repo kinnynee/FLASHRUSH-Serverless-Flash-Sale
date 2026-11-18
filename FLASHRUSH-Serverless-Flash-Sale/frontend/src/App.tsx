@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { EmptyState } from './components/common/EmptyState';
@@ -10,8 +10,58 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderProcessingPage } from './pages/OrderProcessingPage';
 import { OrderResultPage } from './pages/OrderResultPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
+import { DashboardLayout } from './components/dashboard/DashboardLayout';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { MonitoringDashboardPage } from './pages/MonitoringDashboardPage';
+
+function StorefrontLayout() {
+  return <><Header /><main id="main-content" tabIndex={-1}><Outlet /></main><Footer /></>;
+}
+
 export default function App() {
   const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); document.title = `${pathname === '/' ? 'Flash Sale hôm nay' : pathname === '/products' ? 'Sản phẩm Flash Sale' : pathname.startsWith('/products/') ? 'Chi tiết sản phẩm' : 'FLASHRUSH Demo'} | FLASHRUSH`; document.getElementById('main-content')?.focus({ preventScroll: true }); }, [pathname]);
-  return <><Header /><main id="main-content" tabIndex={-1}><Routes><Route path="/" element={<HomePage />} /><Route path="/products" element={<ProductListingPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/checkout" element={<CheckoutPage />} /><Route path="/orders" element={<OrderHistoryPage />} /><Route path="/orders/:orderId/processing" element={<OrderProcessingPage />} /><Route path="/orders/:orderId/result" element={<OrderResultPage />} /><Route path="*" element={<div className="container"><EmptyState title="Trang này không tồn tại" description="Hãy quay về trang chủ để khám phá ưu đãi."><Link className="button button-primary" to="/">Về trang chủ</Link></EmptyState></div>} /></Routes></main><Footer /></>;
+  useEffect(() => {
+    const path = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+    const titles: Record<string, string> = {
+      '/': 'Flash Sale hôm nay',
+      '/products': 'Sản phẩm Flash Sale',
+      '/admin': 'Tổng quan Flash Sale',
+      '/admin/products': 'Sản phẩm · Quản trị demo',
+      '/admin/orders': 'Đơn hàng · Quản trị demo',
+      '/admin/monitoring': 'Giám sát hệ thống',
+    };
+    const title = titles[path] ?? (path.startsWith('/products/') ? 'Chi tiết sản phẩm' : path.startsWith('/admin/orders/') ? 'Chi tiết đơn hàng · Quản trị demo' : 'FLASHRUSH Demo');
+    window.scrollTo(0, 0);
+    document.title = `${title} | FLASHRUSH`;
+    document.getElementById('main-content')?.focus({ preventScroll: true });
+  }, [pathname]);
+
+  return (
+    <Routes>
+      <Route element={<StorefrontLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductListingPage />} />
+        <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/orders" element={<OrderHistoryPage />} />
+        <Route path="/orders/:orderId/processing" element={<OrderProcessingPage />} />
+        <Route path="/orders/:orderId/result" element={<OrderResultPage />} />
+        <Route path="*" element={
+          <div className="container">
+            <EmptyState title="Trang này không tồn tại" description="Hãy quay về trang chủ để khám phá ưu đãi.">
+              <Link className="button button-primary" to="/">Về trang chủ</Link>
+            </EmptyState>
+          </div>
+        } />
+      </Route>
+      <Route path="/admin" element={<DashboardLayout />}>
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="products" element={<AdminDashboardPage section="products" />} />
+        <Route path="orders" element={<AdminDashboardPage section="orders" />} />
+        <Route path="orders/:orderId" element={<AdminDashboardPage section="detail" />} />
+        <Route path="monitoring" element={<MonitoringDashboardPage />} />
+        <Route path="*" element={<AdminDashboardPage section="missing" />} />
+      </Route>
+    </Routes>
+  );
 }
