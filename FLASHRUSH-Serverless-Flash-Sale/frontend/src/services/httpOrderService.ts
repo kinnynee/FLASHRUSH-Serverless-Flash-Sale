@@ -1,0 +1,41 @@
+import type { OrderService } from './orderService';
+import type { OrderRecord, OrderStatus } from '../types/order';
+import { productService } from './productService';
+
+const statuses: OrderStatus[] = ['PENDING', 'PROCESSING', 'CONFIRMED', 'OUT_OF_STOCK', 'FAILED'];
+export class OrderApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+async function request(path: string, init: RequestInit) {
+  const base = import.meta.env.VITE_API_BASE_URL;
+  if (!base) throw new Error('Chưa cấu hình địa chỉ API.');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`${base.replace(/\/$/, '')}${path}`, { ...init, signal: controller.signal });
+    if (!response.ok) {
+      const messages: Record<number, string> = { 400: 'Yêu cầu không hợp lệ.', 403: 'Không có quyền tra cứu đơn.', 404: 'Không tìm thấy đơn hoặc sản phẩm.', 409: 'Khóa yêu cầu đã được dùng với lựa chọn khác.', 429: 'Quá nhiều yêu cầu. Vui lòng chờ rồi thử lại.' };
+      throw new OrderApiError(response.status, messages[response.status] || 'Chưa thể xác định kết quả. Hãy thử lại cùng yêu cầu.');
+    }
+    if (![200, 202].includes(response.status)) throw new Error('Phản hồi API chưa hợp lệ.');
+    return await response.json() as Record<string, unknown>;
+  } finally { clearTimeout(timer); }
+}
+function identity(data: Record<string, unknown>) {
+  if (typeof data.orderId !== 'string' || !statuses.includes(data.status as OrderStatus)) throw new Error('Phản hồi trạng thái không hợp lệ.');
+  return { orderId: data.orderId, status: data.status as OrderStatus };
+}
+export const httpOrderService: OrderService = {
+  async submit(intent) {
+    const data = await request('/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': intent.key }, body: JSON.stringify({ productId: intent.item.productId, quantity: intent.item.quantity }) });
+    return { ...identity(data), item: intent.item, createdAt: intent.createdAt };
+  },
+  async getOrder(orderId, key): Promise<OrderRecord> {
+    const data = await request(`/orders/${encodeURIComponent(orderId)}`, { headers: { 'X-Order-Token': key } });
+    const id = identity(data);
+    if (id.orderId !== orderId || typeof data.productId !== 'string' || !Number.isInteger(data.quantity) || Number(data.quantity) < 1) throw new Error('Dữ liệu đơn không hợp lệ.');
+    const product = await productService.getProductById(data.productId);
+    if (!product) throw new Error('Chưa có dữ liệu hiển thị cho sản phẩm này.');
+    return { ...id, item: { productId: product.productId, name: product.name, image: product.images[0], quantity: Number(data.quantity), unitPrice: product.price }, createdAt: Date.parse(String(data.createdAt || data.updatedAt)) || Date.now() };
+  },
+};

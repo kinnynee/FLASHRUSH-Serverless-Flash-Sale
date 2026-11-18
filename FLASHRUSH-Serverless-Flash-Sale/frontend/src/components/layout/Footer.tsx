@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 const information: Record<string, string> = {
   'Điều khoản': 'FLASHRUSH là bản demo phục vụ học tập. Không có giao dịch, thanh toán hoặc giao hàng thực tế.',
-  'Bảo mật': 'Bản demo không yêu cầu tài khoản và không gửi thông tin đặt hàng tới backend. Thời gian phiên sale được lưu trong sessionStorage của trình duyệt.',
-  'Trung tâm trợ giúp': 'Tìm kiếm hoặc lọc sản phẩm, mở trang chi tiết và chọn số lượng để xem điểm bàn giao Checkout. Tồn kho và giá đều là dữ liệu mô phỏng.',
+  'Bảo mật': 'Bản demo không yêu cầu tài khoản và không gửi đơn hàng tới backend. Thông tin truy cập đơn được lưu trong phiên trình duyệt; lịch sử mô phỏng được lưu trên trình duyệt này.',
+  'Trung tâm trợ giúp': 'Chọn sản phẩm và số lượng để gửi yêu cầu mô phỏng. Kết quả chỉ là kịch bản demo, không giữ hàng hoặc thanh toán.',
   'Liên hệ': 'Dự án FLASHRUSH — Serverless Flash Sale System on AWS. Thông tin liên hệ của nhóm sẽ được bổ sung khi triển khai chính thức.',
 };
 export function Footer() {
