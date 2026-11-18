@@ -1,0 +1,11 @@
+import { Search, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+export function SearchBar() {
+  const [params] = useSearchParams();
+  const query = params.get('q') || '';
+  const [value, setValue] = useState(query);
+  const navigate = useNavigate();
+  useEffect(() => setValue(query), [query]);
+  return <form className="search-bar" role="search" onSubmit={event => { event.preventDefault(); navigate(`/products${value.trim() ? `?q=${encodeURIComponent(value.trim())}` : ''}`); }}><button type="submit" aria-label="Tìm kiếm"><Search size={19} /></button><input aria-label="Tìm kiếm sản phẩm" placeholder="Tìm kiếm sản phẩm Flash Sale…" value={value} onChange={event => setValue(event.target.value)} />{value && <button type="button" aria-label="Xóa tìm kiếm" onClick={() => { setValue(''); navigate('/products'); }}><X size={16} /></button>}</form>;
+}

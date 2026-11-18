@@ -1,0 +1,4 @@
+import { ProductImage } from '../common/ProductImage';
+import { formatPrice } from '../../utils/product';
+import type { OrderItem } from '../../types/order';
+export function OrderSummary({ item, orderId }: { item: OrderItem; orderId?: string }) { return <div className="order-summary">{orderId && <div className="order-summary-head"><span>Mã đơn hàng</span><strong>{orderId}</strong></div>}<div className="order-product"><ProductImage src={item.image} alt="" /><div><strong>{item.name}</strong><p>Mã sản phẩm: {item.productId}{item.selectedColor && ` · ${item.selectedColor}`}</p><p>Số lượng: {item.quantity} · Đơn giá: {formatPrice(item.unitPrice)}</p></div></div><div className="order-summary-head"><span>Giá trị đơn hàng mô phỏng</span><strong className="order-price">{formatPrice(item.unitPrice * item.quantity)}</strong></div></div>; }
