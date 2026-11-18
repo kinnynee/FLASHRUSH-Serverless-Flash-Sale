@@ -1,0 +1,9 @@
+.venv/
+.build/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.playwright-cli/
+output/playwright/
