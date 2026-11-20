@@ -7,7 +7,7 @@ import type { DashboardService } from './dashboardService';
  */
 export class DashboardNotConfiguredError extends Error {
   constructor() {
-    super('Chưa cấu hình API giám sát. Dashboard hiện sử dụng dữ liệu mô phỏng.');
+    super('Chưa cấu hình API giám sát hệ thống.');
   }
 }
 

@@ -11,11 +11,11 @@ export function ProductInventoryTable({ products }: { products: DashboardProduct
   return (
     <section className="dash-card dash-table-card" aria-labelledby="dash-products">
       <div className="dash-section-heading">
-        <div><h2 id="dash-products">Sản phẩm Flash Sale</h2><p>Tồn kho của các mặt hàng trong phiên mô phỏng</p></div>
+        <div><h2 id="dash-products">Sản phẩm Flash Sale</h2><p>Tồn kho của các mặt hàng trong đợt Flash Sale</p></div>
         <span>{products.length} mặt hàng</span>
       </div>
       {products.length === 0 ? (
-        <EmptyState title="Chưa có sản phẩm" description="Phiên mô phỏng hiện tại chưa có mặt hàng." />
+        <EmptyState title="Chưa có sản phẩm" description="Hiện tại chưa có mặt hàng nào." />
       ) : (
         <div className="dash-scroll-table" role="region" aria-labelledby="dash-products" tabIndex={0}>
           <table>
@@ -48,11 +48,11 @@ export function RecentOrdersTable({ orders, recent = false }: { orders: OrderRec
   return (
     <section className="dash-card dash-table-card" aria-labelledby="dash-orders">
       <div className="dash-section-heading">
-        <div><h2 id="dash-orders">{recent ? 'Đơn hàng gần đây' : 'Đơn hàng Flash Sale'}</h2><p>Các yêu cầu đặt hàng trong phiên mô phỏng</p></div>
+        <div><h2 id="dash-orders">{recent ? 'Đơn hàng gần đây' : 'Đơn hàng Flash Sale'}</h2><p>Các yêu cầu đặt hàng trong đợt Flash Sale</p></div>
         {recent && orders.length > shown.length && <Link className="dash-text-link" to="/admin/orders">Xem tất cả {orders.length} đơn</Link>}
       </div>
       {shown.length === 0 ? (
-        <EmptyState title="Chưa có đơn hàng" description="Phiên mô phỏng hiện tại chưa ghi nhận yêu cầu đặt hàng." />
+        <EmptyState title="Chưa có đơn hàng" description="Hiện tại chưa ghi nhận yêu cầu đặt hàng nào." />
       ) : (
         <div className="dash-scroll-table" role="region" aria-labelledby="dash-orders" tabIndex={0}>
           <table>

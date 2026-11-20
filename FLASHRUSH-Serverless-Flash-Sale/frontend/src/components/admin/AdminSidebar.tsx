@@ -10,16 +10,16 @@ export function AdminSidebar() {
   return (
     <aside className="dash-sidebar">
       <span className="dash-sidebar-label">Quản lý Flash Sale</span>
-      <nav className="dash-nav" aria-label="Điều hướng quản trị demo">
+      <nav className="dash-nav" aria-label="Điều hướng quản trị">
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink to={to} key={to}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>
         ))}
       </nav>
       <div className="dash-sidebar-footer">
-        <Link className="button button-secondary dash-home" to="/"><Store size={16} /> Về trang Demo</Link>
+        <Link className="button button-secondary dash-home" to="/"><Store size={16} /> Về cửa hàng</Link>
         <div className="dash-account">
           <span className="dash-avatar" aria-hidden="true">AD</span>
-          <div><strong>Quản trị viên demo</strong><small>FLASHRUSH Store</small></div>
+          <div><strong>Quản trị viên</strong><small>FLASHRUSH Store</small></div>
         </div>
       </div>
     </aside>
