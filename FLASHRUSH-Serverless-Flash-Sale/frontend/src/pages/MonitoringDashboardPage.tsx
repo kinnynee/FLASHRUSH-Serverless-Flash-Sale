@@ -4,6 +4,7 @@ import { Button } from '../components/common/Button';
 import { DashboardContent, formatSnapshotTime, OrderMetricsOverview } from '../components/dashboard/DashboardCommon';
 import { scenarioLabels, useDashboard } from '../components/dashboard/DashboardLayout';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
+import { AdminTopbar } from '../components/admin/AdminTopbar';
 import { LambdaMetricsCard, SqsMetricsCard, SystemAlerts } from '../components/monitoring/MonitoringCards';
 import { MonitoringHeader } from '../components/monitoring/MonitoringHeader';
 import type { DashboardScenario } from '../types/dashboard';
@@ -11,9 +12,11 @@ import type { DashboardScenario } from '../types/dashboard';
 export function MonitoringDashboardPage() {
   const { scenario, result, setScenario, refresh } = useDashboard();
   return (
-    <div className="dash-admin">
-      <AdminSidebar />
-      <main id="main-content" tabIndex={-1} className="dash-admin-main">
+    <>
+      <AdminTopbar />
+      <div className="dash-admin">
+        <AdminSidebar />
+        <main id="main-content" tabIndex={-1} className="dash-admin-main">
         <header className="dash-admin-header dash-heading dash-monitor-heading">
           <div>
             <div className="dash-monitor-title"><h1>Giám sát hệ thống</h1><span className="dash-tag dash-amber">DỮ LIỆU MÔ PHỎNG — CHƯA KẾT NỐI AWS</span></div>
@@ -53,7 +56,8 @@ export function MonitoringDashboardPage() {
             </label>
           </section>
         </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }

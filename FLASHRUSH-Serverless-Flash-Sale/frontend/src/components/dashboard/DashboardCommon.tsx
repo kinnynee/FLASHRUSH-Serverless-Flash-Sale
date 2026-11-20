@@ -1,6 +1,5 @@
-import { Ban, CircleAlert, CircleCheck, ClipboardList, Zap } from 'lucide-react';
+import { Ban, CircleAlert, CircleCheck, ClipboardList } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import type { DashboardSnapshot, OrderMetrics } from '../../types/dashboard';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
@@ -10,15 +9,6 @@ const timeFormatter = new Intl.DateTimeFormat('vi-VN', { timeStyle: 'medium', ti
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Ho_Chi_Minh' });
 export const formatTime = (date: string | number) => timeFormatter.format(new Date(date));
 export const formatSnapshotTime = (date: string | number) => dateFormatter.format(new Date(date));
-
-export function DashboardBrand({ cloud = false }: { cloud?: boolean }) {
-  return (
-    <Link className={`dash-brand ${cloud ? 'dash-brand-cloud' : ''}`} to="/admin" aria-label="FLASHRUSH · Tổng quan quản trị demo">
-      <span className="dash-brand-mark"><Zap size={17} fill="currentColor" strokeWidth={0} /></span>
-      FLASHRUSH <span className="dash-brand-label">{cloud ? 'Cloud Console' : 'Quản trị demo'}</span>
-    </Link>
-  );
-}
 
 export function MonitoringStatusBadge({ snapshot }: { snapshot?: DashboardSnapshot }) {
   const { result } = useDashboard();

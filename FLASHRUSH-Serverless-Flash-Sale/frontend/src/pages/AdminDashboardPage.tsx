@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
+import { AdminTopbar } from '../components/admin/AdminTopbar';
 import { ProductInventoryTable, RecentOrdersTable } from '../components/admin/AdminTables';
 import { EmptyState } from '../components/common/EmptyState';
 import { DashboardContent, formatSnapshotTime, MonitoringStatusBadge, OrderMetricsOverview } from '../components/dashboard/DashboardCommon';
@@ -39,9 +40,11 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
   const [title, description] = pages[section];
 
   return (
-    <div className="dash-admin">
-      <AdminSidebar />
-      <main id="main-content" tabIndex={-1} className="dash-admin-main">
+    <>
+      <AdminTopbar />
+      <div className="dash-admin">
+        <AdminSidebar />
+        <main id="main-content" tabIndex={-1} className="dash-admin-main">
         <header className="dash-admin-header dash-heading">
           <div><h1>{title}</h1><p>{description}</p></div>
           <div className="dash-header-badges">
@@ -69,7 +72,8 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
             <Link className="dash-text-link" to="/admin/monitoring">Mở trang giám sát <ArrowRight size={16} /></Link>
           </div>
         </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
