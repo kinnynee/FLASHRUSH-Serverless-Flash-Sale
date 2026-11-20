@@ -39,6 +39,7 @@ export interface DashboardAlert {
 
 export interface DashboardSnapshot {
   source: 'MOCK' | 'AWS';
+  /** Fixed example data. This timestamp is not a live AWS observation. */
   sessionId: string;
   updatedAt: string;
   orders: OrderMetrics;

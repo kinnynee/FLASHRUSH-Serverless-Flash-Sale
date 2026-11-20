@@ -48,14 +48,14 @@ export const scenarioTelemetry: Record<'warning' | 'healthy' | 'empty', { sqs: S
   warning: {
     sqs: { visibleMessages: 0, inFlightMessages: 0, dlqMessages: 2 },
     lambda: {
-      invocations: 100, errors: 2, averageDurationMs: 85, concurrency: 0, errorRateThreshold: 1,
+      invocations: 100, errors: 2, averageDurationMs: 85, concurrency: 0, errorRateThreshold: 1, runtime: 'Python 3.12 · arm64',
       durationBreakdown: [{ label: 'DynamoDB', ms: 60 }, { label: 'Logic worker', ms: 15 }, { label: 'Mạng', ms: 10 }],
     },
   },
   healthy: {
     sqs: { visibleMessages: 1, inFlightMessages: 1, dlqMessages: 0 },
     lambda: {
-      invocations: 101, errors: 0, averageDurationMs: 75, concurrency: 1, errorRateThreshold: 1,
+      invocations: 101, errors: 0, averageDurationMs: 75, concurrency: 1, errorRateThreshold: 1, runtime: 'Python 3.12 · arm64',
       durationBreakdown: [{ label: 'DynamoDB', ms: 52 }, { label: 'Logic worker', ms: 15 }, { label: 'Mạng', ms: 8 }],
     },
   },

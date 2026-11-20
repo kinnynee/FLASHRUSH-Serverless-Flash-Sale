@@ -9,6 +9,7 @@ const links = [
 export function AdminSidebar() {
   return (
     <aside className="dash-sidebar">
+      <span className="dash-sidebar-label">Quản lý Flash Sale</span>
       <nav className="dash-nav" aria-label="Điều hướng quản trị demo">
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink to={to} key={to}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>

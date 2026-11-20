@@ -15,7 +15,7 @@ export function MonitoringStatusBadge({ snapshot }: { snapshot?: DashboardSnapsh
   if (!snapshot) return <span className="dash-tag">{result.status === 'loading' ? 'Đang tải dữ liệu' : 'Chưa có trạng thái'}</span>;
   if (!snapshot.orders.accepted) return <span className="dash-tag">Phiên chưa có dữ liệu</span>;
   const warning = snapshot.alerts.some(alert => alert.status === 'OPEN');
-  return <span className={`dash-tag ${warning ? 'dash-amber' : 'dash-green'}`}><span className="dash-dot" />{warning ? 'Cảnh báo demo' : 'Hoạt động bình thường · Demo'}</span>;
+  return <span className={`dash-tag ${warning ? 'dash-amber' : 'dash-green'}`}><span className="dash-dot" />{warning ? 'Có cảnh báo' : 'Hệ thống ổn định'}</span>;
 }
 
 const metrics = [

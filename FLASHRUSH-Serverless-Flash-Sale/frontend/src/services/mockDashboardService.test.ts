@@ -6,6 +6,8 @@ describe('mockDashboardService', () => {
     const snapshot = await mockDashboardService.getDashboardSnapshot('warning');
     expect(snapshot.orders).toMatchObject({ accepted: 100, pending: 0, processing: 0, confirmed: 10, outOfStock: 88, failed: 2 });
     expect(snapshot.orderRecords).toHaveLength(snapshot.orders.accepted);
+    expect(snapshot.source).toBe('MOCK');
+    expect(snapshot.lambda.runtime).toBe('Python 3.12 · arm64');
     expect(snapshot.products.map(product => [product.productId, product.stock])).toEqual([
       ['sony-wh-1000xm5', 0], ['keychron-k2', 0], ['logitech-mx-master-3s', 4],
     ]);
