@@ -25,12 +25,14 @@ export default function App() {
     const titles: Record<string, string> = {
       '/': 'Flash Sale hôm nay',
       '/products': 'Sản phẩm Flash Sale',
+      '/checkout': 'Xác nhận yêu cầu đặt hàng',
+      '/orders': 'Đơn hàng của tôi',
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
       '/admin/orders': 'Đơn hàng · Quản trị demo',
       '/admin/monitoring': 'Giám sát hệ thống',
     };
-    const title = titles[path] ?? (path.startsWith('/products/') ? 'Chi tiết sản phẩm' : path.startsWith('/admin/orders/') ? 'Chi tiết đơn hàng · Quản trị demo' : 'FLASHRUSH Demo');
+    const title = titles[path] ?? (path.startsWith('/products/') ? 'Chi tiết sản phẩm' : path.startsWith('/orders/') ? 'Chi tiết đơn hàng' : path.startsWith('/admin/orders/') ? 'Chi tiết đơn hàng · Quản trị demo' : 'Trang không tồn tại');
     window.scrollTo(0, 0);
     document.title = `${title} | FLASHRUSH`;
     document.getElementById('main-content')?.focus({ preventScroll: true });

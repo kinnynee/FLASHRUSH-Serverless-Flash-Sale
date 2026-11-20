@@ -201,11 +201,6 @@ select { border: 0; border-radius: 6px; padding: 9px 6px; background: var(--colo
 .stock-note { display: flex; gap: 10px; padding: 15px; border-radius: 12px; background: white; margin-top: 14px; font-size: 12px; }
 .stock-note > svg { color: var(--color-brand); background: #ffe1e7; padding: 3px; border-radius: 50%; width: 29px; height: 29px; }
 .stock-note p { margin-top: 4px; color: #8a707a; font-size: 11px; line-height: 1.5; }
-.checkout-notice { margin-top: 15px; padding: 14px; border-radius: 7px; background: #fff0f4; border: 1px solid #ffcedb; font-size: 12px; }
-.checkout-notice p { margin-top: 8px; line-height: 1.6; }
-.checkout-notice details { margin-block: 10px; }
-.checkout-notice summary { cursor: pointer; }
-.checkout-notice code { display: block; margin-top: 8px; overflow-wrap: anywhere; }
 .related-products { margin-block: 30px; }
 @media (min-width: 1500px) { .hero { min-height: 400px; } }
 @media (max-width: 1100px) { .header-inner { gap: 18px; } .header-demo { display: none; } .brand { font-size: 22px; } .navbar { gap: 14px; font-size: 11px; } .filter-top { align-items: start; } .filter-chips { gap: 5px; } .listing-title h1 { font-size: 20px; } .listing-title .countdown > span { display: none; } .spec { padding: 9px; } .spec strong { font-size: 13px; } .quantity-row { flex-wrap: wrap; } }
