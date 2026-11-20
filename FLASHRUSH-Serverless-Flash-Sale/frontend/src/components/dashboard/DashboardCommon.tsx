@@ -59,9 +59,9 @@ export function OrderMetricsOverview({ orders, monitoring = false }: { orders: O
 }
 
 export function DashboardContent({ children }: { children: (snapshot: DashboardSnapshot) => ReactNode }) {
-  const { result, refresh } = useDashboard();
+  const { result, refresh, setScenario } = useDashboard();
   if (result.status === 'error') {
-    return <EmptyState error title="Không thể tải dữ liệu mô phỏng" description={result.message}><Button onClick={refresh}>Thử lại</Button></EmptyState>;
+    return <EmptyState error title="Không thể tải dữ liệu mô phỏng" description={result.message}><div className="dash-state-actions"><Button onClick={refresh}>Thử lại</Button><Button variant="secondary" onClick={() => setScenario('warning')}>Tải kịch bản mặc định</Button></div></EmptyState>;
   }
   if (result.status === 'loading') {
     return (
