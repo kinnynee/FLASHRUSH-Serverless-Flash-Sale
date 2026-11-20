@@ -1,6 +1,5 @@
-import { Ban, CircleAlert, CircleCheck, ClipboardList, Zap } from 'lucide-react';
+import { Ban, CircleAlert, CircleCheck, ClipboardList } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import type { DashboardSnapshot, OrderMetrics } from '../../types/dashboard';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
@@ -11,21 +10,12 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', tim
 export const formatTime = (date: string | number) => timeFormatter.format(new Date(date));
 export const formatSnapshotTime = (date: string | number) => dateFormatter.format(new Date(date));
 
-export function DashboardBrand({ cloud = false }: { cloud?: boolean }) {
-  return (
-    <Link className={`dash-brand ${cloud ? 'dash-brand-cloud' : ''}`} to="/admin" aria-label="FLASHRUSH · Tổng quan quản trị demo">
-      <span className="dash-brand-mark"><Zap size={17} fill="currentColor" strokeWidth={0} /></span>
-      FLASHRUSH <span className="dash-brand-label">{cloud ? 'Cloud Console' : 'Quản trị demo'}</span>
-    </Link>
-  );
-}
-
 export function MonitoringStatusBadge({ snapshot }: { snapshot?: DashboardSnapshot }) {
   const { result } = useDashboard();
   if (!snapshot) return <span className="dash-tag">{result.status === 'loading' ? 'Đang tải dữ liệu' : 'Chưa có trạng thái'}</span>;
   if (!snapshot.orders.accepted) return <span className="dash-tag">Phiên chưa có dữ liệu</span>;
   const warning = snapshot.alerts.some(alert => alert.status === 'OPEN');
-  return <span className={`dash-tag ${warning ? 'dash-amber' : 'dash-green'}`}><span className="dash-dot" />{warning ? 'Cảnh báo demo' : 'Hoạt động bình thường · Demo'}</span>;
+  return <span className={`dash-tag ${warning ? 'dash-amber' : 'dash-green'}`}><span className="dash-dot" />{warning ? 'Có cảnh báo' : 'Hệ thống ổn định'}</span>;
 }
 
 const metrics = [
@@ -59,9 +49,9 @@ export function OrderMetricsOverview({ orders, monitoring = false }: { orders: O
 }
 
 export function DashboardContent({ children }: { children: (snapshot: DashboardSnapshot) => ReactNode }) {
-  const { result, refresh } = useDashboard();
+  const { result, refresh, setScenario } = useDashboard();
   if (result.status === 'error') {
-    return <EmptyState error title="Không thể tải dữ liệu mô phỏng" description={result.message}><Button onClick={refresh}>Thử lại</Button></EmptyState>;
+    return <EmptyState error title="Không thể tải dữ liệu mô phỏng" description={result.message}><div className="dash-state-actions"><Button onClick={refresh}>Thử lại</Button><Button variant="secondary" onClick={() => setScenario('warning')}>Tải kịch bản mặc định</Button></div></EmptyState>;
   }
   if (result.status === 'loading') {
     return (
