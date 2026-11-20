@@ -18,7 +18,9 @@ async function request(path: string, init: RequestInit) {
       throw new OrderApiError(response.status, messages[response.status] || 'Chưa thể xác định kết quả. Hãy thử lại cùng yêu cầu.');
     }
     if (![200, 202].includes(response.status)) throw new Error('Phản hồi API chưa hợp lệ.');
-    return await response.json() as Record<string, unknown>;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Phản hồi API không hợp lệ.');
+    return data as Record<string, unknown>;
   } finally { clearTimeout(timer); }
 }
 function identity(data: Record<string, unknown>) {

@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-18",
+  "browser": "Microsoft Edge via Playwright CLI",
+  "website": "https://d3iqr833zkimb.cloudfront.net",
+  "flow": ["Homepage", "Sony product detail", "Checkout quantity=1", "Processing", "CONFIRMED result"],
+  "orderId": "ord_1212ae7cbd68a0b1e09061f9bdaf31c4",
+  "consoleErrors": 0,
+  "dynamodbOrderStatus": "CONFIRMED",
+  "stockBefore": 3,
+  "stockAfter": 2,
+  "notes": "Initial navigation timed out but subsequent snapshot and interaction succeeded. Separate AWS load-test evidence audits stock. No bearer tokens stored in evidence."
+}

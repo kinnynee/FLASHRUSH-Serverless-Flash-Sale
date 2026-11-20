@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-11-20T04:41:03.266057+00:00",
+  "runId": "12a6a83bad32",
+  "checks": {
+    "homepage": true,
+    "indexHash": true,
+    "/assets/index-CqFLEnsg.js": true,
+    "/assets/index-BXjhyRZB.css": true,
+    "spaRoute": true,
+    "missingAssetDenied": true,
+    "catalog": true,
+    "accepted": true,
+    "confirmed": true,
+    "stockDecrementOnce": true,
+    "missingTokenDenied": true,
+    "correctTokenAllowed": true
+  },
+  "orderId": "ord_feb2a70e7208edb11679a13eb3921ce8",
+  "productId": "deploy-smoke-12a6a83bad32",
+  "stackStatus": "UPDATE_COMPLETE",
+  "manifest": "deployment-12a6a83bad32-manifest.json"
+}

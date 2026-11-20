@@ -1,0 +1,41 @@
+{
+    "Status": "UPDATE_COMPLETE",
+    "Outputs": [
+        {
+            "OutputKey": "AlertsTopicArn",
+            "OutputValue": "arn:aws:sns:us-east-1:303278700480:flashrush-lab-alerts"
+        },
+        {
+            "OutputKey": "ApiUrl",
+            "OutputValue": "https://6bxtg6foxl.execute-api.us-east-1.amazonaws.com"
+        },
+        {
+            "OutputKey": "WebsiteBucket",
+            "OutputValue": "flashrush-lab-web-303278700480-us-east-1"
+        },
+        {
+            "OutputKey": "OrdersTable",
+            "OutputValue": "flashrush-lab-orders"
+        },
+        {
+            "OutputKey": "ProductsTable",
+            "OutputValue": "flashrush-lab-products"
+        },
+        {
+            "OutputKey": "WebsiteUrl",
+            "OutputValue": "https://d3iqr833zkimb.cloudfront.net"
+        },
+        {
+            "OutputKey": "DLQUrl",
+            "OutputValue": "https://sqs.us-east-1.amazonaws.com/303278700480/flashrush-lab-dlq"
+        },
+        {
+            "OutputKey": "DistributionId",
+            "OutputValue": "E1W17WY4FUJC33"
+        },
+        {
+            "OutputKey": "QueueUrl",
+            "OutputValue": "https://sqs.us-east-1.amazonaws.com/303278700480/flashrush-lab-orders"
+        }
+    ]
+}

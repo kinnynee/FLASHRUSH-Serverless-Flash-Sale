@@ -1,3 +1,5 @@
+> Update 2026-11-20: productService and orderService support HTTP mode (VITE_ORDER_MODE=http, VITE_API_BASE_URL). Admin/Monitoring remain mock. Historical handover below may describe earlier scaffolding; current code and operations guide take precedence.
+
 # Order flow handover
 
 Work is integrated in the existing `FLASHRUSH-Serverless-Flash-Sale/frontend`, reusing the order implementation reviewed in PR #2 without creating a root-level frontend or changing that PR.

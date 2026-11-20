@@ -22,8 +22,8 @@ Open the local URL printed by Vite. `npm run build` checks TypeScript and produc
 | `/` | Developer 1 — hero, countdown, categories, featured products |
 | `/products` | Developer 1 — search, category, price range, sort |
 | `/products/:productId` | Developer 1 — gallery, stock, colors, quantity, related products |
-| `/checkout` | Developer 2 — currently a neutral integration notice only |
-| `/orders` | Developer 2 — currently a neutral integration notice only |
+| `/checkout` | Checkout, persisted intent, same-key retry; HTTP mode quantity=1 |
+| `/orders` | Checkout, persisted intent, same-key retry; HTTP mode quantity=1 |
 | `/admin` | Admin Dashboard demo với KPI, tồn kho và đơn hàng chỉ đọc |
 | `/admin/products` | Danh sách sản phẩm của phiên Admin demo |
 | `/admin/orders` | Danh sách đơn hàng của phiên Admin demo |
@@ -59,7 +59,7 @@ Types: `src/types/product.ts` exports `Product` and `CheckoutIntent`. `src/utils
 
 This is a temporary frontend contract requiring Developer 2 confirmation. IDs are stable slugs, never list indexes. Retrieve a fresh product with `productService.getProductById(productId)` and validate quantity/availability again. URL data is untrusted. Never accept price or stock supplied by a query string as authoritative.
 
-The Buy Now handler currently prepares the URL and displays an inline handover notice, without navigating to an unfinished checkout. It does not create an order, reserve stock or claim purchase success. After Developer 2 integrates Checkout, replace this notice action with navigation to `checkoutUrl(intent)` and replace the placeholder route in `App.tsx`. The `/orders` route is similarly reserved. Do not add a second Header/Footer: `App.tsx` already owns the shared layout.
+Buy Now navigates to Checkout. Orders support processing, result and browser history. Default mode is mock; VITE_ORDER_MODE=http uses the configured API for products and orders. Admin/Monitoring remain simulated.
 
 Shared components are organized under `components/common`, `components/layout`, `components/product`. Theme tokens in `src/styles/index.css` (`@theme`) are also usable as Tailwind utilities, e.g. `bg-brand`, `text-ink`, `bg-canvas`. Reuse `Button` primary/secondary, `formatPrice`, `StockIndicator`, `LoadingSkeleton`, and `EmptyState`. Follow native button/link semantics, explicit field labels, visible keyboard focus, and reduced-motion preferences.
 
@@ -77,12 +77,5 @@ Deploy `dist/` to S3/CloudFront when authorized. BrowserRouter requires a CloudF
 
 ## Verification — 2026-11-18
 
-- `npm test`: 11 tests passed in 2 files. Covers combined filters, accent-insensitive search, numerical sorting, empty results, quantity limits, countdown/expiry, checkout URL encoding, stable IDs, unknown IDs, cloned responses, service errors and retry recovery.
-- `npm run build`: passed TypeScript checking and Vite production compilation.
-- Local dev HTTP request to `/products/sony-wh-1000xm5`: 200. This verifies the development server fallback, not browser rendering or deployed CloudFront routing.
-- All 13 referenced local product photographs exist.
-- `npm audit --omit=dev`: 0 vulnerabilities. Full audit: 5 high findings in the development toolchain, rooted in the transitive `picomatch` ReDoS advisory GHSA-fc5q-39xc-vjpf (propagating through fdir/tinyglobby/Vite/Vitest). The registry's latest picomatch version at verification was 4.0.7 and was still in the affected range. No forced dependency downgrade was applied. Recheck patched versions before publishing a shared development environment; the dev server is bound to loopback.
-- **Visual/browser QA remains unverified.** Browser-tab control was unavailable; Windows Edge control then stopped because the tool could not determine the current URL confidently enough to enforce its policy. No desktop/mobile screenshots, rendered-overflow checks or end-to-end browser interaction claims are made.
-- CSS includes desktop, tablet, mobile and reduced-motion breakpoints. Manually review at 1440, 1024, 768, 390 and 320 px: header/search, 4/3/2/1-column grids, detail stacking, no horizontal scrolling, focus states, gallery, filters, empty/error states, sold-out purchase disabling, expiry and Checkout notice.
-
-No commits, pushes, merges or deployments were performed for this implementation.
+- Audit remediation 2026-11-20: 26 tests passed in 5 files; production build passed.
+- Historical dependency audit text was stale; run `npm audit` for current results.
