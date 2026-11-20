@@ -1,0 +1,30 @@
+name: Offline checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: FLASHRUSH-Serverless-Flash-Sale
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: FLASHRUSH-Serverless-Flash-Sale/frontend/package-lock.json
+      - run: python -m pip install -r backend/requirements-lock.txt
+      - run: python -B -m unittest discover -s backend -p 'test_*.py' -v
+      - run: python -B -m unittest discover -s scripts/deploy -p 'test_*.py' -v
+      - run: npm ci --prefix frontend
+      - run: npm test --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npm run build --prefix frontend
+        env:
+          VITE_ORDER_MODE: http
+          VITE_API_BASE_URL: https://example.invalid

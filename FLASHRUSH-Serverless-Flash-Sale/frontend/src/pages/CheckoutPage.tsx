@@ -18,7 +18,7 @@ export function CheckoutPage() {
   const [outcome, setOutcome] = useState<MockOutcome>('CONFIRMED');
   const productId = params.get('productId') || ''; const quantity = Number(params.get('quantity')); const color = params.get('color') || undefined;
   useEffect(() => { let active = true; setLoading(true); setError(''); productService.getProductById(productId).then(p => { if (active) setProduct(p); }).catch(() => { if (active) setError('Không thể tải sản phẩm.'); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [productId]);
-  const valid = !!product && Number.isInteger(quantity) && quantity > 0 && quantity <= product.stock && Date.parse(product.saleEndsAt) > Date.now() && (!color || !!product.colors?.includes(color));
+  const valid = !!product && Number.isInteger(quantity) && quantity > 0 && (isMockMode || quantity === 1) && quantity <= product.stock && Date.parse(product.saleEndsAt) > Date.now() && (!color || !!product.colors?.includes(color));
   async function submit() {
     if (lock.current) return; lock.current = true; setBusy(true); setError('');
     try {
@@ -28,6 +28,7 @@ export function CheckoutPage() {
         current = { key: crypto.randomUUID(), item: { productId: product.productId, name: product.name, image: product.images[0], quantity, unitPrice: product.price, selectedColor: color }, outcome, createdAt: Date.now() };
         saveIntent(current); setIntent(current);
       }
+      if (!isMockMode && current.item.quantity !== 1) throw new Error('API chỉ hỗ trợ số lượng 1.');
       const order = await orderService.submit(current);
       saveAccess(order.orderId, current.key); saveHistory(order); clearIntent(); setIntent(null);
       navigate(`/orders/${encodeURIComponent(order.orderId)}/${order.status === 'PENDING' ? 'processing' : 'result'}`);

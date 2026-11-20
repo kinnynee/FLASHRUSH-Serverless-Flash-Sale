@@ -70,3 +70,16 @@ Cleanup only the named FLASHRUSH stack: stop test traffic; disable its SQS event
 - [SQS event source mapping, timeout and IAM configuration](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html)
 - [Partial batch response and retry handling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html)
 - [CloudFormation Lambda properties](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-lambda-function.html)
+
+
+## Audit remediation — 2026-11-20 (source only)
+
+All four scripts accept the same --profile, --region, --account and --stack arguments. Default account is 303278700480. Only flashrush-lab is currently supported because physical names are fixed. STS identity and existing stack Project tag/region/account are checked before mutation. Missing or unready stack aborts publish/verify/recovery. Use the same flags on every command.
+
+Recovery defaults to a 300-second operational threshold (not an approved business SLA). It reports age, attempts, eligibility, dryRun and overdueUnresolved. Exit 2 means overdue PENDING remains, even after successful resend; investigate and rerun after worker completion. Missing timestamps require investigation. Manual checks are required after every demo and regularly while traffic is active; there is no scheduler. Operator needs scoped sts:GetCallerIdentity, cloudformation:DescribeStacks, dynamodb:Scan/GetItem on Orders; resend additionally needs dynamodb:UpdateItem on Orders and sqs:SendMessage on the main queue. Prefer a dedicated operator role; deployed operator IAM is not verified.
+
+Publish builds before catalog seeding and uploads index last. Retain previous dist and manifest for rollback. CloudFront template uses a viewer-request Function to rewrite extensionless application routes; missing assets retain origin errors. This template change has not been deployed. Duplicate verifier now uses a separate stock=2 fixture and waits for worker terminal-noop logs; timeout fails instead of assuming a five-second sleep proves consumption. Existing 18 November evidence remains historical and does not validate the revised verifier.
+
+Run local checks with backend/requirements-lock.txt (Python 3.12). Runtime boto3 is still Lambda-provided; its exact deployed version must be recorded during live validation. Manifests under .build/manifests record commit/dirty state, target and operation details. Deploy manifest is prepared-state only; capture final stack state separately. Archive manifests with test evidence after a run. CI is offline and has no AWS credentials.
+
+See [architecture draft](../architecture/baseline.md) and [cleanup/rollback runbook](cleanup-runbook.md). Architecture approval, live fault injection/DLQ/redrive, cleanup rehearsal, screenshots and Workshop host remain outstanding; do not report them as completed.

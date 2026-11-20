@@ -251,7 +251,7 @@
         "MemorySize": 256,
         "Code": {
           "S3Bucket": "flashrush-lab-artifacts-303278700480-us-east-1",
-          "S3Key": "lambda/544905d3fee1bfb573e83065a0ff84af143e988aff86d5a9d0711d73d87e4ff0.zip"
+          "S3Key": "lambda/87876ed885fe56003c78246206e9c280d005341ae2f617e682ddf80d5ce71060.zip"
         },
         "Environment": {
           "Variables": {
@@ -295,7 +295,7 @@
         "MemorySize": 256,
         "Code": {
           "S3Bucket": "flashrush-lab-artifacts-303278700480-us-east-1",
-          "S3Key": "lambda/544905d3fee1bfb573e83065a0ff84af143e988aff86d5a9d0711d73d87e4ff0.zip"
+          "S3Key": "lambda/87876ed885fe56003c78246206e9c280d005341ae2f617e682ddf80d5ce71060.zip"
         },
         "Environment": {
           "Variables": {
@@ -541,6 +541,18 @@
         }
       }
     },
+    "SpaRewrite": {
+      "Type": "AWS::CloudFront::Function",
+      "Properties": {
+        "Name": "flashrush-lab-spa-rewrite",
+        "AutoPublish": true,
+        "FunctionConfig": {
+          "Comment": "Rewrite application routes only; preserve asset errors",
+          "Runtime": "cloudfront-js-2.0"
+        },
+        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
+      }
+    },
     "Distribution": {
       "Type": "AWS::CloudFront::Distribution",
       "Properties": {
@@ -575,22 +587,19 @@
               "HEAD"
             ],
             "Compress": true,
+            "FunctionAssociations": [
+              {
+                "EventType": "viewer-request",
+                "FunctionARN": {
+                  "Fn::GetAtt": [
+                    "SpaRewrite",
+                    "FunctionARN"
+                  ]
+                }
+              }
+            ],
             "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6"
           },
-          "CustomErrorResponses": [
-            {
-              "ErrorCode": 403,
-              "ResponseCode": 200,
-              "ResponsePagePath": "/index.html",
-              "ErrorCachingMinTTL": 0
-            },
-            {
-              "ErrorCode": 404,
-              "ResponseCode": 200,
-              "ResponsePagePath": "/index.html",
-              "ErrorCachingMinTTL": 0
-            }
-          ],
           "ViewerCertificate": {
             "CloudFrontDefaultCertificate": true
           }

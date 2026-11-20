@@ -98,13 +98,20 @@ def enqueue(item):
 
 
 def api(event, context):
+    request_id = event.get('requestContext', {}).get('requestId') or getattr(context, 'aws_request_id', 'local')
     try:
-        return route(event)
+        result = route(event)
     except (ValueError, TypeError, KeyError, json.JSONDecodeError):
-        return error(400, 'INVALID_REQUEST')
+        result = error(400, 'INVALID_REQUEST')
     except Exception as exc:
-        log.error('api_error type=%s requestId=%s', type(exc).__name__, getattr(context, 'aws_request_id', 'local'))
-        return error(503, 'SERVICE_UNAVAILABLE', True)
+        log.error('api_error type=%s requestId=%s', type(exc).__name__, request_id)
+        result = error(503, 'SERVICE_UNAVAILABLE', True)
+    result['headers']['X-Request-Id'] = request_id
+    if result['statusCode'] >= 400:
+        body = json.loads(result['body'])
+        body['error']['requestId'] = request_id
+        result['body'] = json.dumps(body)
+    return result
 
 
 def route(event):
@@ -178,6 +185,7 @@ def process(message):
     if not item:
         raise ValueError('Missing order')
     if item['status'] in TERMINAL:
+        log.info('worker_terminal_noop orderId=%s', item['orderId'])
         return
     if any(message.get(k) != item[k] for k in ('productId', 'quantity')):
         raise ValueError('Message mismatch')

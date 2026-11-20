@@ -85,7 +85,7 @@ flowchart TB
 
 **Quy tắc nhất quán:** SQS Standard có thể giao lại message, vì vậy Worker phải idempotent. DynamoDB transaction **không bao gồm** thao tác gửi SQS; cơ chế `enqueueState`, retry và đối soát các đơn `PENDING` là phần thiết kế cần xác nhận trước khi triển khai.
 
-> Sơ đồ có thể chỉnh sửa: [`docs/architecture/Flash_Sale_Architecture_Updated.drawio`](docs/architecture/Flash_Sale_Architecture_Updated.drawio) — bổ sung tệp này vào repo nếu chưa có.
+> Sơ đồ có thể chỉnh sửa: [Architecture baseline (pending approval)](FLASHRUSH-Serverless-Flash-Sale/docs/architecture/baseline.md) — bản dự thảo, chưa được phê duyệt.
 
 ## ☁️ Dịch vụ AWS
 
@@ -181,7 +181,7 @@ Cây trên mô tả **cấu trúc mục tiêu**; một số thư mục hoặc m�
 
 ```bash
 # Tại thư mục gốc repository
-cd frontend
+cd FLASHRUSH-Serverless-Flash-Sale/frontend
 npm install
 npm run dev
 ```
@@ -259,12 +259,12 @@ main
 - Commit theo Conventional Commits, ví dụ: `feat(SCRUM-17): implement order intake`.
 - Tạo **Pull Request** và được ít nhất một thành viên khác review trước khi merge.
 - Không push trực tiếp lên `main` hoặc commit secrets.
-- Xem thêm [`CONTRIBUTING.md`](CONTRIBUTING.md) nếu đã được thêm vào repository.
+- Xem thêm [`CONTRIBUTING.md`](FLASHRUSH-Serverless-Flash-Sale/CONTRIBUTING.md) nếu đã được thêm vào repository.
 
 ## 📖 Tài liệu tham khảo
 
-- **Tài liệu yêu cầu:** [`docs/requirements/system-overview.md`](docs/requirements/system-overview.md) — bản v1.1 Revised Draft.
-- **Sơ đồ kiến trúc:** [`docs/architecture/Flash_Sale_Architecture_Updated.drawio`](docs/architecture/Flash_Sale_Architecture_Updated.drawio).
+- **Tài liệu yêu cầu:** [`docs/requirements/system-overview.md`](FLASHRUSH-Serverless-Flash-Sale/docs/requirements/system-overview.md) — bản v1.1 Revised Draft.
+- **Sơ đồ kiến trúc:** [Architecture baseline (pending approval)](FLASHRUSH-Serverless-Flash-Sale/docs/architecture/baseline.md).
 - **Jira:** [FLASHRUSH Scrum Board](https://ktran6738.atlassian.net/jira/software/projects/SCRUM/boards/1).
 - **AWS:** [DynamoDB Transactions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html) · [Lambda + SQS Error Handling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html) · [AWS Pricing Calculator](https://calculator.aws/).
 

@@ -2,14 +2,13 @@
 
 AWS references: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/
 """
-import argparse
 import hashlib
 import json
 import time
 from pathlib import Path
 import zipfile
 
-import boto3
+from lab_config import parser, connect, stack_outputs, manifest
 from botocore.exceptions import ClientError
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -74,13 +73,17 @@ def template(bucket, code_key):
         'BucketEncryption': {'ServerSideEncryptionConfiguration': [{'ServerSideEncryptionByDefault': {'SSEAlgorithm': 'AES256'}}]}})
     resource('OAC', 'CloudFront::OriginAccessControl', {'OriginAccessControlConfig': {'Name': 'flashrush-lab-oac',
         'OriginAccessControlOriginType': 's3', 'SigningBehavior': 'always', 'SigningProtocol': 'sigv4'}})
+    resource('SpaRewrite', 'CloudFront::Function', {
+        'Name': 'flashrush-lab-spa-rewrite', 'AutoPublish': True,
+        'FunctionConfig': {'Comment': 'Rewrite application routes only; preserve asset errors', 'Runtime': 'cloudfront-js-2.0'},
+        'FunctionCode': "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"})
     resource('Distribution', 'CloudFront::Distribution', {'DistributionConfig': {'Enabled': True, 'DefaultRootObject': 'index.html',
         'PriceClass': 'PriceClass_100', 'HttpVersion': 'http2', 'IPV6Enabled': True,
         'Origins': [{'Id': 'website', 'DomainName': {'Fn::GetAtt': ['Website', 'RegionalDomainName']},
             'OriginAccessControlId': ref('OAC'), 'S3OriginConfig': {'OriginAccessIdentity': ''}}],
         'DefaultCacheBehavior': {'TargetOriginId': 'website', 'ViewerProtocolPolicy': 'redirect-to-https',
-            'AllowedMethods': ['GET', 'HEAD'], 'Compress': True, 'CachePolicyId': '658327ea-f89d-4fab-a63d-7e88639e58f6'},
-        'CustomErrorResponses': [{'ErrorCode': c, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0} for c in [403, 404]],
+            'AllowedMethods': ['GET', 'HEAD'], 'Compress': True,
+            'FunctionAssociations': [{'EventType': 'viewer-request', 'FunctionARN': {'Fn::GetAtt': ['SpaRewrite', 'FunctionARN']}}], 'CachePolicyId': '658327ea-f89d-4fab-a63d-7e88639e58f6'},
         'ViewerCertificate': {'CloudFrontDefaultCertificate': True}}})
     resource('WebsitePolicy', 'S3::BucketPolicy', {'Bucket': ref('Website'), 'PolicyDocument': {'Version': '2012-10-17', 'Statement': [
         {'Effect': 'Allow', 'Principal': {'Service': 'cloudfront.amazonaws.com'}, 'Action': 's3:GetObject',
@@ -109,12 +112,15 @@ def template(bucket, code_key):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--profile', default='dropit-admin')
-    parser.add_argument('--region', default='us-east-1')
-    args = parser.parse_args()
-    session = boto3.Session(profile_name=args.profile, region_name=args.region)
-    account = session.client('sts').get_caller_identity()['Account']
+    args = parser().parse_args()
+    session = connect(args)
+    account = args.account
+    cf = session.client('cloudformation')
+    try:
+        stack_outputs(session, args)
+    except ClientError as exc:
+        if 'does not exist' not in str(exc):
+            raise
     s3 = session.client('s3')
     bucket = f'flashrush-lab-artifacts-{account}-{args.region}'
     try:
@@ -143,7 +149,7 @@ def main():
     target.write_text(json.dumps(document, indent=2)+'\n', encoding='utf-8')
     cf = session.client('cloudformation')
     cf.validate_template(TemplateBody=json.dumps(document))
-    stack = 'flashrush-lab'
+    stack = args.stack
     change = 'deploy-' + hashlib.sha256(json.dumps(document).encode()).hexdigest()[:12] + '-' + str(int(time.time()))
     try:
         cf.describe_stacks(StackName=stack)
@@ -166,6 +172,7 @@ def main():
     changes = cf.describe_change_set(StackName=stack, ChangeSetName=change)
     (build/'change-set.json').write_text(json.dumps(changes, default=str, indent=2), encoding='utf-8')
     print('Validated change set:', kind, len(changes.get('Changes', [])), 'resources', flush=True)
+    manifest(args, 'deploy', templateSha256=hashlib.sha256(json.dumps(document, sort_keys=True).encode()).hexdigest(), codeSha256=hashlib.sha256(code.read_bytes()).hexdigest(), artifactBucket=bucket, artifactKey=key, changeSet=change, status='prepared')
     cf.execute_change_set(StackName=stack, ChangeSetName=change)
     print('Deployment started. Stack:', stack, flush=True)
 
