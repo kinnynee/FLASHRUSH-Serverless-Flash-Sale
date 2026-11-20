@@ -28,7 +28,7 @@ const metrics = [
 export function OrderMetricsOverview({ orders, monitoring = false }: { orders: OrderMetrics; monitoring?: boolean }) {
   return (
     <section aria-label="Tổng quan xử lý đơn hàng">
-      {monitoring && <div className="dash-section-heading dash-plain-heading"><h2><ClipboardList size={18} /> Tổng quan xử lý đơn hàng</h2><span>Kịch bản mô phỏng</span></div>}
+      {monitoring && <div className="dash-section-heading dash-plain-heading"><h2><ClipboardList size={18} /> Tổng quan xử lý đơn hàng</h2><span>Thời gian thực</span></div>}
       <div className="dash-kpis">
         {metrics.map(({ key, admin, monitoring: title, tone, icon: Icon, label, note }) => (
           <article className={`dash-card dash-kpi dash-${tone}`} key={key}>
@@ -51,7 +51,7 @@ export function OrderMetricsOverview({ orders, monitoring = false }: { orders: O
 export function DashboardContent({ children }: { children: (snapshot: DashboardSnapshot) => ReactNode }) {
   const { result, refresh, setScenario } = useDashboard();
   if (result.status === 'error') {
-    return <EmptyState error title="Không thể tải dữ liệu mô phỏng" description={result.message}><div className="dash-state-actions"><Button onClick={refresh}>Thử lại</Button><Button variant="secondary" onClick={() => setScenario('warning')}>Tải kịch bản mặc định</Button></div></EmptyState>;
+    return <EmptyState error title="Không thể tải dữ liệu" description={result.message}><div className="dash-state-actions"><Button onClick={refresh}>Thử lại</Button><Button variant="secondary" onClick={() => setScenario('warning')}>Tải kịch bản mặc định</Button></div></EmptyState>;
   }
   if (result.status === 'loading') {
     return (

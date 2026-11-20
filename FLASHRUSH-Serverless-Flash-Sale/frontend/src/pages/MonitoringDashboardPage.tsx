@@ -19,7 +19,7 @@ export function MonitoringDashboardPage() {
           <header className="dash-admin-header dash-heading dash-monitor-heading">
             <div>
               <h1>Giám sát hệ thống</h1>
-              <p>Theo dõi đơn hàng, hàng đợi và worker trong phiên demo.</p>
+              <p>Theo dõi đơn hàng, hàng đợi SQS và worker trong thời gian thực.</p>
             </div>
             <div className="dash-monitor-actions">
               <label className="dash-scenario-select">

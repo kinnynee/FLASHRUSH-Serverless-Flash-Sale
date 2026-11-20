@@ -15,7 +15,7 @@ export const mockOrderService: OrderService = {
     return order;
   },
   async getOrder(orderId, key) {
-    if (import.meta.env.DEV && sessionStorage.getItem('flashrush.demo.networkError') === 'true') throw new Error('Lỗi mạng mô phỏng.');
+    if (import.meta.env.DEV && sessionStorage.getItem('flashrush.demo.networkError') === 'true') throw new Error('Lỗi kết nối mạng.');
     const orders = getMockOrders();
     const entry = orders[orderId];
     if (!entry || entry.key !== key) throw new Error('Không thể truy cập trạng thái đơn trong phiên này.');

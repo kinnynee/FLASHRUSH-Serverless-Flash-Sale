@@ -42,7 +42,7 @@ export const mockDashboardService: DashboardService = {
     });
     if (orders.confirmed > 0) alerts.push({
       id: 'confirmed', severity: 'INFO', createdAt: '2026-11-18T07:22:01Z', status: 'RECORDED',
-      message: `Đã xác nhận ${orders.confirmed} đơn hàng trong phiên Flash Sale mô phỏng.`,
+      message: `Đã xác nhận ${orders.confirmed} đơn hàng trong phiên Flash Sale.`,
     });
 
     return structuredClone({
