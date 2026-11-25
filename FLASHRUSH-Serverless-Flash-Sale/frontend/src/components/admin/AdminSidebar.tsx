@@ -1,8 +1,9 @@
-import { Package, ReceiptText, Store } from 'lucide-react';
+import { CalendarClock, Package, ReceiptText, Store } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 
 const links = [
   { to: '/admin/products', label: 'Sản phẩm', icon: Package },
+  { to: '/admin/campaigns', label: 'Chiến dịch', icon: CalendarClock },
   { to: '/admin/orders', label: 'Đơn hàng', icon: ReceiptText },
 ];
 

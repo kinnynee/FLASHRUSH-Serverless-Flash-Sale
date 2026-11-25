@@ -9,10 +9,12 @@ import { useDashboard } from '../components/dashboard/DashboardLayout';
 import { OrderStatusBadge } from '../components/order/OrderStatusBadge';
 import { OrderSummary } from '../components/order/OrderSummary';
 import type { OrderRecord } from '../types/order';
+import { AdminCampaignManagement } from './AdminCampaignManagement';
 
 const pages = {
   overview: ['Tổng quan Flash Sale', 'Theo dõi sản phẩm, tồn kho và kết quả đặt hàng.'],
   products: ['Sản phẩm', 'Xem tồn kho của phiên Flash Sale.'],
+  campaigns: ['Chiến dịch Flash Sale', 'Tạo, chỉnh sửa lịch và sản phẩm của các chiến dịch.'],
   orders: ['Đơn hàng', 'Theo dõi yêu cầu đã tiếp nhận và trạng thái xử lý.'],
   detail: ['Chi tiết đơn hàng', 'Thông tin chi tiết của đơn hàng.'],
   missing: ['Trang quản trị không tồn tại', 'Quay về trang tổng quan quản trị.'],
@@ -57,6 +59,8 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
             <EmptyState title="Không tìm thấy trang" description="Đường dẫn này không thuộc khu vực quản trị.">
               <Link className="button button-primary" to="/admin">Về tổng quan</Link>
             </EmptyState>
+          ) : section === 'campaigns' ? (
+            <AdminCampaignManagement />
           ) : (
             <DashboardContent>{data => <>
               {section === 'overview' && <OrderMetricsOverview orders={data.orders} />}

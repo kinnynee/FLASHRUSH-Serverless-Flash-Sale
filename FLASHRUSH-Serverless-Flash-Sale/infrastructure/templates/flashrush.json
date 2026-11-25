@@ -46,6 +46,28 @@
         }
       }
     },
+    "Campaigns": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "flashrush-lab-campaigns",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "campaignId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "campaignId",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      }
+    },
     "DLQ": {
       "Type": "AWS::SQS::Queue",
       "Properties": {
@@ -111,6 +133,20 @@
                   "Resource": {
                     "Fn::GetAtt": [
                       "Products",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:Scan",
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Campaigns",
                       "Arn"
                     ]
                   }
@@ -261,6 +297,9 @@
             "ORDERS_TABLE": {
               "Ref": "Orders"
             },
+            "CAMPAIGNS_TABLE": {
+              "Ref": "Campaigns"
+            },
             "QUEUE_URL": {
               "Ref": "Queue"
             }
@@ -355,6 +394,7 @@
           "AllowMethods": [
             "GET",
             "POST",
+            "PATCH",
             "OPTIONS"
           ],
           "AllowHeaders": [
@@ -450,6 +490,86 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /orders/{orderId}",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route4": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /campaigns",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route5": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /campaigns/{campaignId}",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route6": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /admin/campaigns",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route7": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/campaigns/{campaignId}",
         "Target": {
           "Fn::Join": [
             "/",
@@ -820,6 +940,11 @@
     "OrdersTable": {
       "Value": {
         "Ref": "Orders"
+      }
+    },
+    "CampaignsTable": {
+      "Value": {
+        "Ref": "Campaigns"
       }
     },
     "QueueUrl": {

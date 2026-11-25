@@ -57,6 +57,7 @@ export default function App() {
       <Route path="/admin" element={<DashboardLayout />}>
         <Route index element={<AdminDashboardPage />} />
         <Route path="products" element={<AdminDashboardPage section="products" />} />
+        <Route path="campaigns" element={<AdminDashboardPage section="campaigns" />} />
         <Route path="orders" element={<AdminDashboardPage section="orders" />} />
         <Route path="orders/:orderId" element={<AdminDashboardPage section="detail" />} />
         <Route path="monitoring" element={<MonitoringDashboardPage />} />
