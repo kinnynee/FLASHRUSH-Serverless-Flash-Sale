@@ -41,6 +41,14 @@ The refresh button reloads products and campaigns. Loading, retryable errors and
 
 Run `npm test` for search/filter/pagination behavior tests and `npm run build` for TypeScript and production bundle checks.
 
+## F04 order progress tracking
+
+Order details show reception, processing and the final outcome from the order API. The progress view displays the order creation time and the last successful status check; it does not invent intermediate event timestamps or shipping states.
+
+Tracking polls every two seconds, backs off after request failures (up to 16 seconds), skips hidden tabs and stops at a terminal result. After 60 seconds it pauses without marking the order failed; the check button starts another tracking window. Requests never overlap and late responses are ignored after leaving the page.
+
+Order history belongs to this browser. Its refresh button checks accessible orders, saves successful updates and retains cached cards with a warning if a request fails. Access tokens remain in session storage; losing that session prevents live verification. No token is added to URLs or local history.
+
 ## Admin and monitoring behavior
 
 Open `/admin` to review the read-only Admin Dashboard and `/admin/monitoring` to open the observability view. Both pages are labelled as simulation data and do not connect to AWS, use AWS credentials, change stock, replay queue messages or edit orders.
