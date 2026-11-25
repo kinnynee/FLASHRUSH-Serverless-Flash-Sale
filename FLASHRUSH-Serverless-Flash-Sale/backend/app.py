@@ -268,7 +268,7 @@ def admin_overview_payload(current=None):
             counts[status] += 1
         if status == 'CONFIRMED':
             price = order.get('unitPrice', product_map.get(order.get('productId'), {}).get('price', 0))
-            revenue += price * order.get('quantity', 0)
+            revenue += order.get('totalAmount', price * order.get('quantity', 0))
     total = len(order_items)
     ordered = sorted(order_items, key=lambda item: (item.get('createdAt', ''), item['orderId']), reverse=True)
     return {'serverTime': (current or datetime.now(timezone.utc)).isoformat(), 'totalRevenue': revenue,

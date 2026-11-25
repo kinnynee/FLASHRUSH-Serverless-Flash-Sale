@@ -193,6 +193,7 @@ def order_list(user, query):
 
 def checkout_view(record):
     return {'checkoutId': record['recordId'][9:], 'status': record['status'],
+            'pricing': record.get('pricing'),
             'orders': [order_view(owned_order(record['userId'], oid)) for oid in record['orderIds']]}
 
 
@@ -247,6 +248,53 @@ def validate_lines(lines):
     return products, quantities, guards
 
 
+def checkout_options():
+    return {'shipping': [{'id': 'STANDARD', 'name': 'Giao hàng tiêu chuẩn', 'fee': 0}],
+            'payments': [{'id': 'COD', 'name': 'Thanh toán khi nhận hàng (COD)'}],
+            'voucher': {'code': 'HAUMON', 'minimum': 3600000, 'basisPoints': 3636}}
+
+
+def selected_cart(user, payload):
+    integer(payload.get('version'), 0, 2147483647)
+    ids = payload.get('lineIds')
+    if not isinstance(ids, list) or not 1 <= len(ids) <= 10 or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids):
+        raise Problem('INVALID_SELECTION')
+    cart = cart_record(user)
+    if cart['version'] != payload['version']:
+        raise Problem('VERSION_CONFLICT', 409)
+    lines = [line for line in cart['items'] if line['lineId'] in ids]
+    if len(lines) != len(ids):
+        raise Problem('CART_CHANGED', 409)
+    return cart, lines
+
+
+def price_checkout(lines, products, payload):
+    voucher = text(payload.get('voucherCode', ''), 30, False).upper()
+    if voucher not in ('', 'HAUMON'):
+        raise Problem('INVALID_VOUCHER', 409)
+    if payload.get('shippingMethod', 'STANDARD') != 'STANDARD':
+        raise Problem('INVALID_SHIPPING_METHOD')
+    if payload.get('paymentMethod', 'COD') != 'COD':
+        raise Problem('INVALID_PAYMENT_METHOD')
+    subtotal = sum(products[line['productId']]['price'] * line['quantity'] for line in lines)
+    if voucher and subtotal < 3600000:
+        raise Problem('VOUCHER_MINIMUM_NOT_MET', 409)
+    # Integer VND: round the total discount down, then allocate by cumulative value.
+    discount = int(subtotal * 3636 // 10000) if voucher else 0
+    return {'subtotal': subtotal, 'discount': discount, 'shippingFee': 0,
+            'total': subtotal - discount, 'voucherCode': voucher,
+            'shippingMethod': 'STANDARD', 'paymentMethod': 'COD',
+            'quantity': sum(line['quantity'] for line in lines)}
+
+
+def checkout_quote(user, payload):
+    if set(payload) - {'version', 'lineIds', 'voucherCode', 'shippingMethod', 'paymentMethod'}:
+        raise Problem('INVALID_CHECKOUT')
+    _, lines = selected_cart(user, payload)
+    products, _, _ = validate_lines(lines)
+    return price_checkout(lines, products, payload)
+
+
 def create_checkout(user, payload, headers):
     token = headers.get('idempotency-key', '')
     try:
@@ -255,7 +303,8 @@ def create_checkout(user, payload, headers):
             raise ValueError()
     except ValueError as exc:
         raise Problem('INVALID_IDEMPOTENCY_KEY') from exc
-    if set(payload) != {'version', 'lineIds', 'addressId'}:
+    if not {'version', 'lineIds', 'addressId'} <= set(payload) or set(payload) - {
+            'version', 'lineIds', 'addressId', 'voucherCode', 'shippingMethod', 'paymentMethod', 'expectedTotal'}:
         raise Problem('INVALID_CHECKOUT')
     integer(payload['version'], 0, 2147483647)
     ids = payload['lineIds']
@@ -271,26 +320,38 @@ def create_checkout(user, payload, headers):
             raise Problem('IDEMPOTENCY_PAYLOAD_CONFLICT', 409)
         enqueue_checkout(record)
         return checkout_view(record)
-    cart = cart_record(user)
-    if cart['version'] != payload['version']:
-        raise Problem('VERSION_CONFLICT', 409)
-    lines = [line for line in cart['items'] if line['lineId'] in ids]
-    if len(lines) != len(ids):
-        raise Problem('CART_CHANGED', 409)
+    cart, lines = selected_cart(user, payload)
     account = read(user, 'PROFILE') or {}
     address = next((a for a in account.get('addresses', []) if a['id'] == address_id), None)
     if not address:
         raise Problem('ADDRESS_REQUIRED', 409)
     product_map, _, _ = validate_lines(lines)
+    pricing = price_checkout(lines, product_map, payload)
+    if 'expectedTotal' in payload:
+        integer(payload['expectedTotal'], 0, 10**15)
+        if payload['expectedTotal'] != pricing['total']:
+            raise Problem('QUOTE_CHANGED', 409)
+    elif payload.get('voucherCode'):
+        raise Problem('QUOTE_REQUIRED', 409)
     timestamp = app.now()
     order_ids, writes = [], []
+    accumulated, allocated = 0, 0
     for line in lines:
         oid = 'ord_' + app.digest(user + ':' + token + ':' + line['lineId'])[:32]
         order_ids.append(oid)
         product = product_map[line['productId']]
+        line_subtotal = product['price'] * line['quantity']
+        accumulated += line_subtotal
+        cumulative_discount = int(pricing['discount'] * accumulated // pricing['subtotal']) if pricing['subtotal'] else 0
+        line_discount = cumulative_discount - allocated
+        allocated = cumulative_discount
         item = {'productId': line['productId'], 'name': product['name'], 'image': product['images'][0],
-                'quantity': line['quantity'], 'unitPrice': product['price'], 'selectedColor': line['color']}
+                'quantity': line['quantity'], 'unitPrice': product['price'], 'selectedColor': line['color'],
+                'discountAmount': line_discount, 'totalAmount': line_subtotal - line_discount,
+                'voucherCode': pricing['voucherCode']}
         order = {'orderId': oid, 'ownerId': user, 'checkoutId': checkout_id, 'item': item, 'address': address,
+                 'totalAmount': item['totalAmount'], 'paymentMethod': pricing['paymentMethod'],
+                 'shippingMethod': pricing['shippingMethod'],
                  'productId': line['productId'], 'quantity': line['quantity'], 'unitPrice': product['price'],
                  'status': 'PENDING', 'createdAt': timestamp, 'updatedAt': timestamp, 'enqueueState': 'GROUP',
                  'idempotencyKeyHash': app.digest(user + ':' + token), 'payloadHash': fingerprint,
@@ -298,7 +359,7 @@ def create_checkout(user, payload, headers):
         writes.extend([{'Put': {'TableName': app.orders.name, 'Item': app.values(order), 'ConditionExpression': 'attribute_not_exists(orderId)'}},
                        {'Put': {'TableName': table().name, 'Item': app.values({**key(user, 'ORDER#'+timestamp+'#'+oid), 'orderId': oid})}}])
     record = {**key(user, sk), 'status': 'PENDING', 'enqueueState': 'NOT_SENT', 'createdAt': timestamp,
-              'payloadHash': fingerprint, 'orderIds': order_ids, 'lines': lines}
+              'payloadHash': fingerprint, 'orderIds': order_ids, 'lines': lines, 'pricing': pricing}
     writes.extend([{'Put': {'TableName': table().name, 'Item': app.values(record), 'ConditionExpression': 'attribute_not_exists(recordId)'}},
                    {'Put': {'TableName': table().name, 'Item': app.values({**key(user, 'CART'), 'version': cart['version'] + 1,
                        'items': [line for line in cart['items'] if line['lineId'] not in ids]}),
@@ -327,6 +388,8 @@ def process_checkout(message):
     status, reason, checks = 'CONFIRMED', '', []
     try:
         products, quantities, campaigns = validate_lines(record['lines'])
+        if record.get('pricing') and price_checkout(record['lines'], products, record['pricing']) != record['pricing']:
+            raise Problem('QUOTE_CHANGED', 409)
         for pid, qty in quantities.items():
             checks.append({'Update': {'TableName': app.products.name, 'Key': app.values({'productId': pid}),
                 'UpdateExpression': 'SET stock=stock-:qty', 'ConditionExpression': 'stock>=:qty AND price=:price',
@@ -385,6 +448,11 @@ def route(event):
         if path == '/me/checkouts' and method == 'POST':
             result = create_checkout(user, payload, {k.lower(): v for k, v in event.get('headers', {}).items()})
             return app.response(202 if result['status'] == 'PENDING' else 200, result)
+        if path == '/me/checkout-quote':
+            if method == 'GET':
+                return app.response(200, checkout_options())
+            if method == 'POST':
+                return app.response(200, checkout_quote(user, payload))
         if path.startswith('/me/checkouts/') and method == 'GET':
             record = read(user, 'CHECKOUT#' + path.split('/')[-1])
             if not record:

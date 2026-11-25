@@ -9,6 +9,16 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ version: 1, items: [] }), { status: 200 })));
 });
 describe('Customer service authorization and mutations', () => {
+  it('requests a server quote for only selected lines without supplying a discount', async () => {
+    const body = { version: 4, lineIds: ['selected'], voucherCode: 'HAUMON', shippingMethod: 'STANDARD', paymentMethod: 'COD' };
+    await customerService.quote(body);
+    expect(fetch).toHaveBeenCalledWith('https://example.test/me/checkout-quote', expect.objectContaining({ method: 'POST', body: JSON.stringify(body) }));
+  });
+  it('sends the reviewed total with the immutable checkout intent', async () => {
+    const body = { version: 4, lineIds: ['selected'], addressId: 'home', voucherCode: 'HAUMON', expectedTotal: 2291040 };
+    await customerService.checkout(body, 'same-request');
+    expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({ body: JSON.stringify(body), headers: { 'Idempotency-Key': 'same-request' } });
+  });
   it('uses only the access token and never sends an owner supplied by the browser', async () => {
     await customerService.cart();
     expect(fetch).toHaveBeenCalledWith('https://example.test/me/cart', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer verified-access' }) }));

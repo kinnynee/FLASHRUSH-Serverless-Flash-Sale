@@ -20,7 +20,7 @@ export function CustomerAuthPage() {
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const navigate = useNavigate();
   const target = params.get('next') || '/account';
-  const next = /^\/(?:cart|products(?:\/[^?#]*)?|account(?:\/[^?#]*)?)(?:\?[^#]*)?$/.test(target) ? target : '/account';
+  const next = /^\/(?:cart(?:\/checkout)?|products(?:\/[^?#]*)?|account(?:\/[^?#]*)?)(?:\?[^#]*)?$/.test(target) ? target : '/account';
   if (ready && user) return <Navigate to={next} replace />;
   const titles: Record<string, string> = { login: 'Đăng nhập', register: 'Tạo tài khoản', confirm: 'Xác minh email', forgot: 'Quên mật khẩu', reset: 'Đặt lại mật khẩu' };
   async function submit(event: FormEvent) {

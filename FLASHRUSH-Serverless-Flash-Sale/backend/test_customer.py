@@ -160,6 +160,65 @@ class CustomerTests(unittest.TestCase):
         for qty in (True, 0, -1, 101, '1'):
             self.assertEqual(self.request('PUT', '/me/cart', {'version': 0, 'items': [{'productId': 'one', 'quantity': qty, 'color': '', 'unitPrice': 100}]})[0], 400)
 
+    def priced_selection(self, prices):
+        for pid, price in zip(('one', 'two'), prices):
+            self.app.products.update_item(Key={'productId': pid}, UpdateExpression='SET price=:p', ExpressionAttributeValues={':p': price})
+        self.customer.save_cart('alice', {'version': 0, 'items': [
+            {'productId': pid, 'quantity': 1, 'color': '', 'unitPrice': price}
+            for pid, price in zip(('one', 'two'), prices)]})
+        return {'version': 1, 'lineIds': [line['lineId'] for line in self.customer.cart_record('alice')['items']], 'voucherCode': 'HAUMON'}
+
+    def test_quote_uses_owned_selection_and_does_not_reserve_stock(self):
+        body = self.priced_selection([1800000, 1800000])
+        code, quote = self.request('POST', '/me/checkout-quote', body)
+        self.assertEqual(code, 200)
+        self.assertEqual((quote['subtotal'], quote['discount'], quote['total']), (3600000, 1308960, 2291040))
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+        self.assertEqual(self.app.products.get_item(Key={'productId': 'one'})['Item']['stock'], 3)
+        self.assertEqual(self.request('POST', '/me/checkout-quote', body, user='bob')[0], 409)
+        self.assertEqual(self.request('POST', '/me/checkout-quote', {**body, 'lineIds': body['lineIds'][:1]})[1]['error']['code'], 'VOUCHER_MINIMUM_NOT_MET')
+
+    def test_voucher_below_threshold_and_untrusted_payload_rejected(self):
+        body = self.priced_selection([1800000, 1799999])
+        self.assertEqual(self.request('POST', '/me/checkout-quote', body)[1]['error']['code'], 'VOUCHER_MINIMUM_NOT_MET')
+        for extra in ({'discount': 9999}, {'userId': 'bob'}, {'voucherCode': 'FREE'}, {'paymentMethod': 'PAID'}, {'shippingMethod': 'EXPRESS'}):
+            self.assertGreaterEqual(self.request('POST', '/me/checkout-quote', {**body, 'voucherCode': '', **extra})[0], 400)
+        code, quote = self.request('POST', '/me/checkout-quote', {**body, 'voucherCode': ''})
+        self.assertEqual(code, 200)
+        self.assertEqual(quote['total'], 3599999)
+
+    def test_discount_rounding_allocation_replay_and_revenue(self):
+        body = self.priced_selection([1800001, 1800002])
+        quote = self.request('POST', '/me/checkout-quote', body)[1]
+        self.assertEqual(quote['discount'], 1308961)
+        checkout_body = {**body, 'addressId': 'home', 'expectedTotal': quote['total']}
+        code, result, token = self.checkout(checkout_body)
+        self.assertEqual(code, 202)
+        self.assertEqual(sum(o['item']['discountAmount'] for o in result['orders']), quote['discount'])
+        self.assertEqual(sum(o['item']['totalAmount'] for o in result['orders']), quote['total'])
+        self.process(result); self.process(result)
+        self.assertEqual(self.app.admin_overview_payload()['totalRevenue'], quote['total'])
+        self.assertEqual(self.checkout(checkout_body, token=token)[1]['pricing'], quote)
+        self.assertEqual(self.checkout({**checkout_body, 'voucherCode': ''}, token=token)[0], 409)
+
+    def test_checkout_revalidates_quote_and_rejects_forged_total(self):
+        body = self.priced_selection([1800000, 1800000])
+        self.assertEqual(self.checkout({**body, 'addressId': 'home'})[1]['error']['code'], 'QUOTE_REQUIRED')
+        self.assertEqual(self.checkout({**body, 'addressId': 'home', 'expectedTotal': 1})[1]['error']['code'], 'QUOTE_CHANGED')
+        self.app.products.update_item(Key={'productId': 'one'}, UpdateExpression='SET price=:p', ExpressionAttributeValues={':p': 1700000})
+        self.assertEqual(self.checkout({**body, 'addressId': 'home', 'expectedTotal': 2291040})[1]['error']['code'], 'PRICE_CHANGED')
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+        self.assertEqual(len(self.customer.cart_record('alice')['items']), 2)
+
+    def test_worker_rejects_changed_discount_snapshot_without_stock_change(self):
+        body = self.priced_selection([1800000, 1800000])
+        _, result, _ = self.checkout({**body, 'addressId': 'home', 'expectedTotal': 2291040})
+        self.customer.table().update_item(Key=self.customer.key('alice', 'CHECKOUT#'+result['checkoutId']),
+            UpdateExpression='SET pricing.discount=:d', ExpressionAttributeValues={':d': 1})
+        self.process(result)
+        self.assertEqual(self.app.read_order(result['orders'][0]['orderId'])['failureReason'], 'QUOTE_CHANGED')
+        self.assertEqual(self.app.products.get_item(Key={'productId': 'one'})['Item']['stock'], 3)
+
 
 if __name__ == '__main__':
     unittest.main()

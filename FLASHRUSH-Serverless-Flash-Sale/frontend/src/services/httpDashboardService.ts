@@ -37,7 +37,10 @@ function order(value: unknown): OrderRecord {
   }
   return { orderId: item.orderId, status: item.status as OrderRecord['status'], createdAt: Date.parse(item.createdAt),
     item: { productId: details.productId, name: details.name, image: details.image,
-      quantity: Number(details.quantity), unitPrice: details.unitPrice } };
+      quantity: Number(details.quantity), unitPrice: details.unitPrice,
+      ...(typeof details.totalAmount === 'number' ? { totalAmount: details.totalAmount } : {}),
+      ...(typeof details.discountAmount === 'number' ? { discountAmount: details.discountAmount } : {}),
+      ...(typeof details.voucherCode === 'string' ? { voucherCode: details.voucherCode } : {}) } };
 }
 
 function product(value: unknown): Product {
