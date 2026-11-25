@@ -247,6 +247,8 @@ def scan_all(table, **scan_kwargs):
 
 def admin_order_record(item, product_map):
     product = product_map.get(item.get('productId'), {})
+    if item.get('ownerId'):
+        return {**public_order(item), 'unitPrice': item['unitPrice'], 'item': item['item']}
     unit_price = item.get('unitPrice', product.get('price', 0))
     return {**public_order(item), 'unitPrice': unit_price,
             'item': {'productId': item['productId'], 'name': product.get('name', item['productId']),
@@ -345,6 +347,9 @@ def route(event):
     method = event['requestContext']['http']['method']
     path = event.get('rawPath', '/')
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
+    if path.startswith('/me/'):
+        from customer import route as customer_route
+        return customer_route(event)
     if path.startswith('/admin/'):
         if not ADMIN_API_KEY:
             return error(503, 'ADMIN_AUTH_NOT_CONFIGURED')
@@ -498,7 +503,7 @@ def route(event):
     if method == 'GET' and path.startswith('/orders/'):
         item = read_order(path.split('/')[-1])
         token_hash = digest(headers.get('x-order-token', ''))
-        if not item or not hmac.compare_digest(item['idempotencyKeyHash'], token_hash):
+        if not item or item.get('ownerId') or not hmac.compare_digest(item['idempotencyKeyHash'], token_hash):
             return error(404, 'ORDER_NOT_FOUND')
         return response(200, public_order(item))
     if method != 'POST' or path != '/orders':
@@ -551,11 +556,16 @@ def route(event):
 
 
 def process(message):
+    if message.get('schemaVersion') == '2.0':
+        from customer import process_checkout
+        return process_checkout(message)
     if message.get('schemaVersion') != '1.0':
         raise ValueError('Unsupported message')
     item = read_order(message['orderId'])
     if not item:
         raise ValueError('Missing order')
+    if item.get('ownerId'):
+        raise ValueError('Customer orders require atomic checkout processing')
     if item['status'] in TERMINAL:
         log.info('worker_terminal_noop orderId=%s', item['orderId'])
         return

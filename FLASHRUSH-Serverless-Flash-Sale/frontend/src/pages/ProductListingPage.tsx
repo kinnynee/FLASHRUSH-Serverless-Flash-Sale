@@ -1,3 +1,6 @@
+import { SaleSchedule } from '../components/product/SaleSchedule';
+import { catalogCategories, saleDeadline } from '../utils/storefront';
+import { normalize } from '../utils/product';
 import { Fragment, useEffect } from "react";
 import {
   PAGE_SIZES,
@@ -14,7 +17,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useProducts } from "../hooks/useProducts";
-import { useCampaigns } from "../hooks/useCampaigns";
+import { useStorefrontCampaigns } from "../hooks/useStorefrontCampaigns";
 import { filterProducts } from "../utils/product";
 import { CountdownTimer } from "../components/common/CountdownTimer";
 import { ProductGrid } from "../components/product/ProductGrid";
@@ -27,22 +30,19 @@ const campaignStatuses: { value: CampaignStatus | "ALL"; label: string }[] = [
   { value: "ACTIVE", label: "Đang diễn ra" },
   { value: "UPCOMING", label: "Sắp diễn ra" },
   { value: "ENDED", label: "Đã kết thúc" },
-  { value: "ALL", label: "Tất cả chiến dịch" },
+  { value: "ALL", label: "Tất cả đợt Flash Sale" },
 ];
 
 export function ProductListingPage() {
   const { products, loading, error, retry } = useProducts();
   const {
     campaigns,
+    now,
     loading: campaignsLoading,
     error: campaignsError,
     retry: retryCampaigns,
-  } = useCampaigns();
-  const categories = [...new Set(products.map((product) => product.category))];
-  const saleEndsAt = products
-    .map((product) => product.saleEndsAt)
-    .filter((value) => Number.isFinite(Date.parse(value)))
-    .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+  } = useStorefrontCampaigns();
+  const categories = catalogCategories(products);
   const [params, setParams] = useSearchParams();
   const query = params.get("q") || "",
     category = params.get("category") || "",
@@ -75,6 +75,7 @@ export function ProductListingPage() {
   const selectedCampaign = availableCampaigns.find(
     (campaign) => campaign.campaignId === selectedCampaignId,
   );
+  const deadline = saleDeadline(selectedCampaignId ? selectedCampaign ? [selectedCampaign] : [] : availableCampaigns, now);
   const campaignIds = selectedCampaignId
     ? new Set(selectedCampaign?.productIds ?? [])
     : status === "ALL"
@@ -108,7 +109,7 @@ export function ProductListingPage() {
   );
   const pages = pageNumbers(pagination.page, pagination.totalPages);
   const busy = loading || campaignsLoading;
-  const loadError = error || campaignsError;
+  const loadError = error || campaignsError.replace(/chiến dịch/gi, 'đợt Flash Sale');
   const refresh = () => {
     retry();
     retryCampaigns();
@@ -137,8 +138,8 @@ export function ProductListingPage() {
               {loading ? "Đang tải" : `${filtered.length} sản phẩm`}
             </span>
           </div>
-          {saleEndsAt && (
-            <CountdownTimer target={saleEndsAt} label="PHIÊN KẾT THÚC TRONG" />
+          {deadline && (
+            <CountdownTimer {...deadline} />
           )}
         </div>
       </div>
@@ -157,11 +158,11 @@ export function ProductListingPage() {
             </button>
           </div>
           <div className="campaign-filter">
-            <span>Chiến dịch:</span>
+            <span>Đợt Flash Sale:</span>
             <div
               className="filter-chips"
               role="group"
-              aria-label="Trạng thái chiến dịch"
+              aria-label="Trạng thái đợt Flash Sale"
             >
               {campaignStatuses.map((item) => (
                 <button
@@ -175,39 +176,15 @@ export function ProductListingPage() {
               ))}
             </div>
           </div>
-          {availableCampaigns.length > 0 && (
-            <div
-              className="filter-chips campaign-options"
-              role="group"
-              aria-label="Chiến dịch"
-            >
-              {availableCampaigns.map((campaign) => (
-                <button
-                  key={campaign.campaignId}
-                  className={`chip ${selectedCampaignId === campaign.campaignId ? "selected" : ""}`}
-                  onClick={() =>
-                    update(
-                      "campaignId",
-                      selectedCampaignId === campaign.campaignId
-                        ? ""
-                        : campaign.campaignId,
-                    )
-                  }
-                  aria-pressed={selectedCampaignId === campaign.campaignId}
-                >
-                  {campaign.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <SaleSchedule campaigns={availableCampaigns} selectedId={selectedCampaignId} onSelect={id => update("campaignId", id)} />
           <div className="filter-top">
-            <div className="filter-chips" role="group" aria-label="Danh mục">
+            <div className="filter-chips category-scroll" role="group" aria-label="Danh mục">
               {["", ...categories].map((item) => (
                 <button
                   key={item}
-                  className={`chip ${category === item ? "selected" : ""}`}
+                  className={`chip ${normalize(category) === normalize(item) ? "selected" : ""}`}
                   onClick={() => update("category", item)}
-                  aria-pressed={category === item}
+                  aria-pressed={normalize(category) === normalize(item)}
                 >
                   {item || "Tất cả danh mục"}
                 </button>
@@ -346,7 +323,7 @@ export function ProductListingPage() {
         ) : (
           <EmptyState
             title="Không tìm thấy sản phẩm phù hợp"
-            description="Thử từ khóa, khoảng giá hoặc chiến dịch khác. Xóa bộ lọc để xem toàn bộ danh mục."
+            description="Thử từ khóa, khoảng giá hoặc đợt Flash Sale khác. Xóa bộ lọc để xem toàn bộ danh mục."
           >
             <Button onClick={clearFilters}>Xóa bộ lọc</Button>
           </EmptyState>

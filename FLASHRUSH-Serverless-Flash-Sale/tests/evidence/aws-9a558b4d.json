@@ -1,0 +1,164 @@
+{
+  "timestamp": "2026-11-25T06:02:16.820149+00:00",
+  "region": "us-east-1",
+  "runId": "9a558b4d",
+  "productId": "load-test-9a558b4d",
+  "submittedUnique": 100,
+  "acceptedUnique": 14,
+  "rejectedSoldOut": 86,
+  "terminal": 14,
+  "states": {
+    "CONFIRMED": 10,
+    "OUT_OF_STOCK": 4,
+    "PENDING": 0,
+    "FAILED": 0
+  },
+  "initialStock": 10,
+  "finalStock": 0,
+  "seconds": 20.18,
+  "httpAttempts": {
+    "409": 86,
+    "202": 14,
+    "429": 8
+  },
+  "orderSnapshots": [
+    {
+      "orderId": "ord_dcb53ac5bf8e2b3819c54e76464c4728",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.137472+00:00",
+      "updatedAt": "2026-11-25T06:01:58.342492+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_244341eca4dc0450ed68abceaa625cda",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.107583+00:00",
+      "updatedAt": "2026-11-25T06:01:58.210250+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_e54cd1b25db00d52768acdeb3e4142e3",
+      "productId": "load-test-9a558b4d",
+      "status": "OUT_OF_STOCK",
+      "createdAt": "2026-11-25T06:01:57.983052+00:00",
+      "updatedAt": "2026-11-25T06:02:01.133741+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_da24d8ea0830116c38579a488136daf9",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.120657+00:00",
+      "updatedAt": "2026-11-25T06:01:58.404256+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_75407c364a2e2ca1ae6b6001ce0f82bb",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.129516+00:00",
+      "updatedAt": "2026-11-25T06:01:58.355608+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_e04c1429df925dea8990147e483b4cdd",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.122669+00:00",
+      "updatedAt": "2026-11-25T06:01:58.289107+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_8940a925edfa1b7b5de4bc3ae598deba",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.125930+00:00",
+      "updatedAt": "2026-11-25T06:01:58.273637+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_d3b1f3749b7a4f1475c08aa228043969",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.135871+00:00",
+      "updatedAt": "2026-11-25T06:01:58.386121+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_094cd6c5f56a8a1e25bccdcb2312f6f2",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.117227+00:00",
+      "updatedAt": "2026-11-25T06:01:58.315551+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_4754e674ef39e7567c9932b3f8579d0b",
+      "productId": "load-test-9a558b4d",
+      "status": "OUT_OF_STOCK",
+      "createdAt": "2026-11-25T06:01:58.128068+00:00",
+      "updatedAt": "2026-11-25T06:02:00.455839+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_d72c740f6cfe52eb977890a4c3fbdddd",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:58.907762+00:00",
+      "updatedAt": "2026-11-25T06:01:58.972160+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_23c256671b4bbbcdb683e004e476d628",
+      "productId": "load-test-9a558b4d",
+      "status": "CONFIRMED",
+      "createdAt": "2026-11-25T06:01:59.047799+00:00",
+      "updatedAt": "2026-11-25T06:01:59.107921+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_17fc7df2e8a21f6a55dad33069cf5422",
+      "productId": "load-test-9a558b4d",
+      "status": "OUT_OF_STOCK",
+      "createdAt": "2026-11-25T06:01:59.150210+00:00",
+      "updatedAt": "2026-11-25T06:01:59.210594+00:00",
+      "quantity": 1
+    },
+    {
+      "orderId": "ord_9ee65d76ab7f8a07918a879cff17305c",
+      "productId": "load-test-9a558b4d",
+      "status": "OUT_OF_STOCK",
+      "createdAt": "2026-11-25T06:01:59.149586+00:00",
+      "updatedAt": "2026-11-25T06:01:59.227920+00:00",
+      "quantity": 1
+    }
+  ],
+  "checks": {
+    "replaySameOrder": true,
+    "missingTokenDenied": true,
+    "correctTokenAllowed": true,
+    "payloadConflict": true,
+    "duplicateMessageNoDecrement": false,
+    "catalogRead": true
+  },
+  "orderIds": [
+    "ord_dcb53ac5bf8e2b3819c54e76464c4728",
+    "ord_244341eca4dc0450ed68abceaa625cda",
+    "ord_e54cd1b25db00d52768acdeb3e4142e3",
+    "ord_da24d8ea0830116c38579a488136daf9",
+    "ord_75407c364a2e2ca1ae6b6001ce0f82bb",
+    "ord_e04c1429df925dea8990147e483b4cdd",
+    "ord_8940a925edfa1b7b5de4bc3ae598deba",
+    "ord_d3b1f3749b7a4f1475c08aa228043969",
+    "ord_094cd6c5f56a8a1e25bccdcb2312f6f2",
+    "ord_4754e674ef39e7567c9932b3f8579d0b",
+    "ord_d72c740f6cfe52eb977890a4c3fbdddd",
+    "ord_23c256671b4bbbcdb683e004e476d628",
+    "ord_17fc7df2e8a21f6a55dad33069cf5422",
+    "ord_9ee65d76ab7f8a07918a879cff17305c"
+  ],
+  "manifest": "C:\\work on AWS\\FLASHRUSH-Serverless-Flash-Sale\\FLASHRUSH-Serverless-Flash-Sale\\.build\\manifests\\20261125T060216879938Z-verify.json",
+  "pass": false
+}

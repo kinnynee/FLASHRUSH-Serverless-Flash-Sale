@@ -11,6 +11,7 @@ import zipfile
 
 from lab_config import parser, connect, stack_outputs, manifest
 from botocore.exceptions import ClientError
+from customer_resources import extend_customer_resources
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -127,6 +128,7 @@ def template(bucket, code_key):
         'WebsiteBucket': ref('Website'), 'DistributionId': ref('Distribution'), 'ProductsTable': ref('Products'),
         'OrdersTable': ref('Orders'), 'CampaignsTable': ref('Campaigns'), 'QueueUrl': ref('Queue'),
         'DLQUrl': ref('DLQ'), 'AlertsTopicArn': ref('Alerts')}.items()}
+    extend_customer_resources(resources, outputs)
     parameters = {'AdminApiKey': {'Type': 'String', 'NoEcho': True, 'MinLength': 32,
         'Description': 'Admin API bearer secret. Supply via FLASHRUSH_ADMIN_API_KEY; never commit it.'}}
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; admin dashboard API',
@@ -168,6 +170,7 @@ def main():
     with zipfile.ZipFile(code, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.write(ROOT / 'backend/app.py', 'app.py')
         archive.write(ROOT / 'backend/monitoring.py', 'monitoring.py')
+        archive.write(ROOT / 'backend/customer.py', 'customer.py')
     key = 'lambda/' + hashlib.sha256(code.read_bytes()).hexdigest() + '.zip'
     s3.upload_file(str(code), bucket, key)
     document = template(bucket, key)
@@ -197,6 +200,11 @@ def main():
             return
         raise
     changes = cf.describe_change_set(StackName=stack, ChangeSetName=change)
+    unsafe = [item['ResourceChange']['LogicalResourceId'] for item in changes.get('Changes', [])
+              if item['ResourceChange']['Action'] == 'Remove'
+              or item['ResourceChange'].get('Replacement') in ('True', 'Conditional')]
+    if unsafe:
+        raise SystemExit('Refusing resource removal/replacement: ' + ', '.join(unsafe))
     (build/'change-set.json').write_text(json.dumps(changes, default=str, indent=2), encoding='utf-8')
     print('Validated change set:', kind, len(changes.get('Changes', [])), 'resources', flush=True)
     manifest(args, 'deploy', templateSha256=hashlib.sha256(json.dumps(document, sort_keys=True).encode()).hexdigest(), codeSha256=hashlib.sha256(code.read_bytes()).hexdigest(), artifactBucket=bucket, artifactKey=key, changeSet=change, status='prepared')

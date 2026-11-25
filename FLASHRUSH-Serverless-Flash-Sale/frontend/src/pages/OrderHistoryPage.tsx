@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { orderService } from "../services/orderService";
 import { LoadingSkeleton } from "../components/common/LoadingSkeleton";
+import { EmptyState } from "../components/common/EmptyState";
 import { Button } from "../components/common/Button";
 import { isTerminal } from "../types/order";
 import type { OrderRecord } from "../types/order";
@@ -169,7 +170,9 @@ export function OrderHistoryPage() {
         />
       </div>
       {shown.length === 0 && (
-        <section className="order-panel">Chưa có đơn hàng phù hợp.</section>
+        <EmptyState title={orders.length ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng nào'} description={orders.length ? 'Thử mã đơn, tên sản phẩm hoặc trạng thái khác.' : 'Khám phá các đợt Flash Sale và chọn sản phẩm yêu thích.'}>
+          {orders.length ? <Button onClick={() => { setFilter('ALL'); setQuery(''); }}>Xóa bộ lọc</Button> : <Link className="button button-primary" to="/products?status=ALL">Khám phá Flash Sale</Link>}
+        </EmptyState>
       )}
       {shown.map((order) => (
         <section className="order-panel history-card" key={order.orderId}>

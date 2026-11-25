@@ -17,15 +17,36 @@ session = connect(args)
 outputs = stack_outputs(session, args)
 (root/'.build').mkdir(exist_ok=True)
 (root/'.build/outputs.json').write_text(json.dumps(outputs, indent=2), encoding='utf-8')
-env = {**os.environ, 'VITE_ORDER_MODE': 'http', 'VITE_API_BASE_URL': outputs['ApiUrl']}
+env = {**os.environ, 'VITE_ORDER_MODE': 'http', 'VITE_API_BASE_URL': outputs['ApiUrl'],
+       'VITE_COGNITO_CLIENT_ID': outputs['CustomerClientId'], 'VITE_COGNITO_REGION': outputs['CustomerRegion']}
 subprocess.run([shutil.which('npm.cmd') or 'npm', 'run', 'build'], cwd=root/'frontend', env=env, check=True)
-table = session.resource('dynamodb').Table(outputs['ProductsTable'])
-for item in json.loads((root/'.build/catalog.json').read_text(encoding='utf-8')):
-    item['priceVnd'] = item['price']
-    item['initialStock'] = item['stock']
-    item['saleEndsAt'] = (datetime.now(timezone.utc)+timedelta(days=7)).isoformat()
+# Seeding is opt-in; normal publishing never changes catalog data.
+if os.environ.get('FLASHRUSH_SEED_CATALOG') == 'true':
+    table = session.resource('dynamodb').Table(outputs['ProductsTable'])
+    catalog = json.loads((root/'.build/catalog.json').read_text(encoding='utf-8'))
+    for item in catalog:
+        item['priceVnd'] = item['price']
+        item['initialStock'] = item['stock']
+        item['saleStartsAt'] = (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat()
+        item['saleEndsAt'] = (datetime.now(timezone.utc)+timedelta(days=7)).isoformat()
+        try:
+            table.put_item(Item=item, ConditionExpression='attribute_not_exists(productId)')
+        except ClientError as exc:
+            if exc.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            # Repair legacy seeds without changing stock or an existing sale window.
+            table.update_item(Key={'productId': item['productId']},
+                UpdateExpression='SET saleStartsAt = if_not_exists(saleStartsAt, :start)',
+                ConditionExpression='attribute_exists(productId)',
+                ExpressionAttributeValues={':start': item['saleStartsAt']})
+    campaigns = session.resource('dynamodb').Table(outputs['CampaignsTable'])
     try:
-        table.put_item(Item=item, ConditionExpression='attribute_not_exists(productId)')
+        campaigns.put_item(Item={
+            'campaignId': 'flashrush-demo', 'name': 'FLASHRUSH Demo',
+            'startTime': (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat(),
+            'endTime': (datetime.now(timezone.utc)+timedelta(days=7)).isoformat(),
+            'productIds': [item['productId'] for item in catalog], 'maxQtyPerOrder': 1,
+        }, ConditionExpression='attribute_not_exists(campaignId)')
     except ClientError as exc:
         if exc.response['Error']['Code'] != 'ConditionalCheckFailedException':
             raise

@@ -72,6 +72,21 @@ class GuardTests(unittest.TestCase):
         item['enqueueAttemptCount'] = 3
         self.assertFalse(module.inspect(item, 300, 300)['eligible'])
 
+    def test_customer_routes_require_cognito_access_scope(self):
+        config = template('bucket', 'key')
+        resources = config['Resources']
+        routes = [r['Properties'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route' and '/me/' in r['Properties']['RouteKey']]
+        self.assertEqual(len(routes), 8)
+        for route in routes:
+            self.assertEqual(route['AuthorizationType'], 'JWT')
+            self.assertEqual(route['AuthorizationScopes'], ['aws.cognito.signin.user.admin'])
+        self.assertFalse(resources['CustomerClient']['Properties']['GenerateSecret'])
+        self.assertEqual(resources['CustomerData']['DeletionPolicy'], 'Retain')
+        self.assertTrue(resources['CustomerData']['Properties']['PointInTimeRecoverySpecification']['PointInTimeRecoveryEnabled'])
+        for function in ('Api', 'Worker'):
+            self.assertEqual(resources[function]['Properties']['Environment']['Variables']['CUSTOMERS_TABLE'], {'Ref': 'CustomerData'})
+        self.assertIn('account', resources['SpaRewrite']['Properties']['FunctionCode'])
+
 
 if __name__ == '__main__':
     unittest.main()
