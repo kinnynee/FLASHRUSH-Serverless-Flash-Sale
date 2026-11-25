@@ -73,13 +73,17 @@ export const httpDashboardService: DashboardService = {
       alerts: [],
     };
   },
-  async getAdminOrders(status = '', cursor = '', limit = 25): Promise<AdminOrdersPage> {
-    const query = new URLSearchParams({ limit: String(limit) });
+  async getAdminOrders(status = '', page = 1, limit = 25): Promise<AdminOrdersPage> {
+    const query = new URLSearchParams({ limit: String(limit), page: String(page) });
     if (status) query.set('status', status);
-    if (cursor) query.set('cursor', cursor);
     const data = await request(`/admin/orders?${query}`);
     if (!Array.isArray(data.items)) throw new Error('Payload /admin/orders không hợp lệ.');
-    return { items: data.items.map(order), nextCursor: typeof data.nextCursor === 'string' ? data.nextCursor : null };
+    return {
+      items: data.items.map(order), nextCursor: typeof data.nextCursor === 'string' ? data.nextCursor : null,
+      page: Number.isInteger(data.page) ? Number(data.page) : page,
+      totalPages: Number.isInteger(data.totalPages) ? Number(data.totalPages) : 1,
+      totalCount: Number.isInteger(data.totalCount) ? Number(data.totalCount) : data.items.length,
+    };
   },
   async createProduct(value) {
     return product(await request('/admin/products', { method: 'POST', body: JSON.stringify(value) }));

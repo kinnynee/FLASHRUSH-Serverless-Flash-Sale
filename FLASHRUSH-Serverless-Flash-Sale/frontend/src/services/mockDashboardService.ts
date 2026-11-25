@@ -54,12 +54,16 @@ export const mockDashboardService: DashboardService = {
       lowStockProducts: products.filter(product => product.stock > 0 && product.stock <= 5),
     });
   },
-  async getAdminOrders(status, cursor, limit = 25): Promise<AdminOrdersPage> {
+  async getAdminOrders(status, page = 1, limit = 25): Promise<AdminOrdersPage> {
     const snapshot = await this.getDashboardSnapshot();
     let items = status ? snapshot.orderRecords.filter(order => order.status === status) : snapshot.orderRecords;
-    const start = cursor ? Number(cursor) || 0 : 0;
-    const page = items.slice(start, start + limit);
-    return { items: page, nextCursor: start + limit < items.length ? String(start + limit) : null };
+    const totalCount = items.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const currentPage = Math.min(Math.max(1, page), Math.max(1, totalPages));
+    const start = (currentPage - 1) * limit;
+    const pageItems = items.slice(start, start + limit);
+    return { items: pageItems, nextCursor: start + limit < items.length ? String(start + limit) : null,
+      page: currentPage, totalPages, totalCount };
   },
   async createProduct(_product: Product): Promise<Product> { throw new Error('Tạo sản phẩm yêu cầu kết nối API quản trị.'); },
   async updateProduct(_productId: string, _changes: Partial<Product>, _stockDelta?: number): Promise<Product> { throw new Error('Cập nhật sản phẩm yêu cầu kết nối API quản trị.'); },

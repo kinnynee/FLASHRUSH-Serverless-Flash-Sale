@@ -53,4 +53,10 @@ export interface DashboardSnapshot {
   alerts: DashboardAlert[];
 }
 
-export interface AdminOrdersPage { items: OrderRecord[]; nextCursor: string | null; }
+export interface AdminOrdersPage {
+  items: OrderRecord[];
+  nextCursor: string | null;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+}
