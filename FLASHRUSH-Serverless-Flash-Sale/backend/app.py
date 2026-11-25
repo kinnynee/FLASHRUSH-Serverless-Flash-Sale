@@ -154,13 +154,23 @@ def campaign_payload(payload, current=None):
     return record
 
 
-def active_campaign_limit(product_id, quantity, current=None):
+def active_campaign_limit(product_id, quantity, current=None, product=None):
     current = current or datetime.now(timezone.utc)
     matching = [item for item in read_campaign_items() if product_id in item.get('productIds', [])]
     active = [item for item in matching if campaign_status(item, current) == 'ACTIVE']
     if not active:
         if matching and any(parse_time(item['startTime']) > current for item in matching):
             return 'SALE_NOT_ACTIVE'
+        if not matching and product:
+            start, end = product.get('saleStartsAt'), product.get('saleEndsAt')
+            if start and end:
+                state = sale_status(start, end, current, product.get('stock', 0) <= 0)
+                if state == 'UPCOMING':
+                    return 'SALE_NOT_ACTIVE'
+                if state == 'ENDED':
+                    return 'SALE_ENDED'
+                if state == 'SOLD_OUT':
+                    return 'SALE_SOLD_OUT'
         return 'SALE_ENDED'
     if any(quantity > item['maxQtyPerOrder'] for item in active):
         return 'CAMPAIGN_QUANTITY_LIMIT'
@@ -314,14 +324,7 @@ def route(event):
         if product.get('stock', 0) <= 0:
             return error(409, 'SALE_SOLD_OUT')
         current = datetime.now(timezone.utc)
-        campaign_error = active_campaign_limit(pid, qty, current)
-        if campaign_error in ('SALE_NOT_ACTIVE', 'SALE_ENDED') and not read_campaign_items():
-            start, end = product.get('saleStartsAt'), product.get('saleEndsAt')
-            if start and end:
-                state = sale_status(start, end, current, product.get('stock', 0) <= 0)
-                campaign_error = ('SALE_NOT_ACTIVE' if state == 'UPCOMING' else
-                                  'SALE_ENDED' if state == 'ENDED' else
-                                  'SALE_SOLD_OUT' if state == 'SOLD_OUT' else None)
+        campaign_error = active_campaign_limit(pid, qty, current, product)
         if campaign_error:
             return error(409, campaign_error)
         item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'status': 'PENDING',
