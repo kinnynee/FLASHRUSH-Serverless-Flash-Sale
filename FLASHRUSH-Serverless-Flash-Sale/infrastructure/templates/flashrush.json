@@ -297,11 +297,11 @@
             "ORDERS_TABLE": {
               "Ref": "Orders"
             },
-            "CAMPAIGNS_TABLE": {
-              "Ref": "Campaigns"
-            },
             "QUEUE_URL": {
               "Ref": "Queue"
+            },
+            "CAMPAIGNS_TABLE": {
+              "Ref": "Campaigns"
             }
           }
         },
@@ -309,7 +309,10 @@
           "arm64"
         ]
       },
-      "DependsOn": "ApiLog"
+      "DependsOn": [
+        "ApiLog",
+        "Worker"
+      ]
     },
     "WorkerLog": {
       "Type": "AWS::Logs::LogGroup",
@@ -670,7 +673,7 @@
           "Comment": "Rewrite application routes only; preserve asset errors",
           "Runtime": "cloudfront-js-2.0"
         },
-        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
+        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|cart|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
       }
     },
     "Distribution": {

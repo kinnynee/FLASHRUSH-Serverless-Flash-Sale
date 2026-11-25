@@ -23,3 +23,5 @@ Check every physical ID from the saved inventory with its service API; confirm m
 ## Frontend rollback
 
 Retain the previous dist directory and its hash manifest before publishing. Verify its API environment matches the guarded target. Upload its assets first, index.html last using the same content types/cache policies; invalidate CloudFront; verify index and referenced assets return correct content types and hashes. Do not delete older hashed assets while rollback may reference them. Catalog seeding is separate and not undone by frontend rollback. Rehearse only within authorized live scope.
+
+When rolling back F10, stop new multi-product intake and keep a v2-compatible worker until the queue, DLQ and pending orders have been reconciled. See the [F10 rollout notes](../features/F10-atomic-cart-checkout.md).

@@ -32,18 +32,20 @@ npm test
 Set-Location ..
 .venv/Scripts/python scripts/deploy/publish.py
 .venv/Scripts/python scripts/deploy/verify.py
+# Optional two-product F10 verification on a dedicated lab stack
+.venv/Scripts/python scripts/deploy/verify.py --multi-product
 ```
 
-Publish seeds only missing catalog records; it never resets stock. Seeded catalog prices and descriptions are demonstration merchandise data, but API stock and order statuses are persisted on AWS. Sale deadlines are seeded seven days ahead. The live verifier creates its own unique SKU with stock 10, submits 100 unique intents using bounded concurrency and same-key HTTP retries, audits DynamoDB, checks token access and payload conflicts, then replays a confirmed message. Evidence files contain counts and order IDs, never bearer keys. HTTP attempt counts distinguish submitted unique requests, accepted orders, retries and terminal outcomes. This is a bounded lab test, not a peak throughput benchmark.
+Publish seeds missing catalog records without resetting existing stock. Storefront checkout requires an active campaign covering its products. The verifier provisions its own short-lived campaign window and unique catalog records, submits 100 unique intents with bounded concurrency, checks token access and idempotency, then redelivers a confirmed message. The multi-product option starts with stock 10 and 20, checks final stock 0 and 10, and uses a separate fixture for duplicate delivery. Evidence lists order IDs, HTTP outcomes and terminal states. Bearer keys stay within the verifier process. See the [F10 rollout and recovery notes](../features/F10-atomic-cart-checkout.md).
 
 ## API
 
 - `GET /products`: `{items: Product[]}`. Product includes frontend display fields plus `priceVnd`.
 - `GET /products/{productId}`: product, or 404.
-- `POST /orders`: `Idempotency-Key` canonical lowercase UUIDv4; body `{productId,quantity:1}`. 202 only after SQS ACK (or prior recorded ACK); 200 for terminal replay; 409 for payload conflict; 503 for uncertain enqueue. Retry with the same key and payload.
+- `POST /orders` requires a lowercase canonical UUIDv4 in `Idempotency-Key`. Send `{items:[{productId,quantity},...]}` or the original `{productId,quantity}`. HTTP 202 acknowledges enqueue, 200 returns terminal replay, 409 reports a conflict, and 503 signals an uncertain enqueue. Retry uncertain outcomes with the same key and payload.
 - `GET /orders/{orderId}`: `X-Order-Token` equals original key; 404 for missing/invalid token or unknown order.
 
-Only quantity 1 is supported. Frontend HTTP mode caps the selector at 1. Raw keys are neither logged nor persisted on AWS. Orders retain hashes until explicit lab cleanup; no TTL silently resets idempotency.
+The active campaign sets the quantity limit per product. Only hashes are persisted on AWS. Orders retain hashes until explicit lab cleanup.
 
 ## Recovery
 

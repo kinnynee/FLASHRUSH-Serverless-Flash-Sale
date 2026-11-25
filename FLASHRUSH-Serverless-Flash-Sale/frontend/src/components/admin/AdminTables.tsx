@@ -61,8 +61,8 @@ export function RecentOrdersTable({ orders, recent = false }: { orders: OrderRec
               {shown.map(order => (
                 <tr key={order.orderId}>
                   <th className="dash-code" scope="row">#{order.orderId}</th>
-                  <td>{order.item.name}</td>
-                  <td>{order.item.quantity} sp</td>
+                  <td>{order.items.map(item => item.name).join(', ')}</td>
+                  <td>{order.totalQuantity} sp</td>
                   <td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td>
                   <td><OrderStatusBadge status={order.status} /></td>
                   <td><Link className="dash-detail-link" to={`/admin/orders/${encodeURIComponent(order.orderId)}`} aria-label={`Xem chi tiết đơn ${order.orderId}`}>Xem chi tiết</Link></td>

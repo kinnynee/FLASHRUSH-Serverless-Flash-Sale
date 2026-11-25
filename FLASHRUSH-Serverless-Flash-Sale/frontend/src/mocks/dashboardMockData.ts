@@ -21,7 +21,12 @@ export function getScenarioOrders(scenario: 'warning' | 'healthy'): OrderRecord[
       orderId: `FR-${String(records.length + 1).padStart(6, '0')}`,
       status,
       createdAt: Date.parse(snapshotTime) - (200 - records.length) * 1000,
-      item: { productId: product.productId, name: product.name, image: product.images[0], unitPrice: product.price, quantity },
+      items: [{ productId: product.productId, name: product.name, image: product.images[0],
+        unitPrice: product.price, quantity, subtotal: product.price * quantity }],
+      totalQuantity: quantity,
+      subtotal: product.price * quantity,
+      discountAmount: 0,
+      totalAmount: product.price * quantity,
     });
   }
 

@@ -34,6 +34,8 @@ class GuardTests(unittest.TestCase):
         config = resources['Distribution']['Properties']['DistributionConfig']
         self.assertNotIn('CustomErrorResponses', config)
         self.assertEqual(config['DefaultCacheBehavior']['FunctionAssociations'][0]['EventType'], 'viewer-request')
+        self.assertIn('products|cart|checkout', resources['SpaRewrite']['Properties']['FunctionCode'])
+        self.assertIn('Worker', resources['Api']['DependsOn'])
 
     def test_recovery_age_and_attempt_boundaries(self):
         path = Path(__file__).resolve().parents[1] / 'ops/reconcile_pending.py'

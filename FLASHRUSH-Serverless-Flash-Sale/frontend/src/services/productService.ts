@@ -8,7 +8,7 @@ export interface ProductService {
 async function readCatalog(path: string) {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new Error('Chưa cấu hình API sản phẩm.');
-  const response = await fetch(`${base.replace(/\/$/, '')}${path}`, { signal: AbortSignal.timeout(10000) });
+  const response = await fetch(`${base.replace(/\/$/, '')}${path}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error('Không thể tải sản phẩm.');
   return response.json();
@@ -22,7 +22,8 @@ function product(value: unknown): Product {
   for (const field of ['price', 'originalPrice', 'stock', 'initialStock']) {
     if (typeof item[field] !== 'number' || !Number.isFinite(item[field]) || Number(item[field]) < 0) throw new Error('Dữ liệu sản phẩm không hợp lệ.');
   }
-  if (!Number.isInteger(item.stock) || !Number.isInteger(item.initialStock) || !Number.isFinite(Date.parse(String(item.saleEndsAt))) ||
+  if (!['price', 'originalPrice', 'stock', 'initialStock'].every(field => Number.isSafeInteger(item[field])) ||
+      !Number.isFinite(Date.parse(String(item.saleEndsAt))) ||
       typeof item.isFlashSale !== 'boolean' || !Array.isArray(item.images) || item.images.length === 0 || item.images.some(image => typeof image !== 'string') ||
       (item.colors !== undefined && (!Array.isArray(item.colors) || item.colors.some(color => typeof color !== 'string'))) ||
       (item.specs !== undefined && (!Array.isArray(item.specs) || item.specs.some(spec => !spec || ['label', 'value', 'detail'].some(key => typeof spec[key] !== 'string'))))) {

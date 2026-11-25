@@ -19,8 +19,9 @@ export const mockDashboardService: DashboardService = {
     for (const order of orderRecords) {
       orders[metricByStatus[order.status]]++;
       if (order.status === 'CONFIRMED') {
-        const { productId, quantity } = order.item;
-        confirmedStock.set(productId, (confirmedStock.get(productId) ?? 0) + quantity);
+        for (const { productId, quantity } of order.items) {
+          confirmedStock.set(productId, (confirmedStock.get(productId) ?? 0) + quantity);
+        }
       }
     }
 

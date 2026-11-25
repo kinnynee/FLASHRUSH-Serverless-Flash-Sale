@@ -2,48 +2,165 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
-import { OrderSummary } from '../components/order/OrderSummary';
-import { productService } from '../services/productService';
+import { OrderItems } from '../components/order/OrderSummary';
+import { readCart, totalQuantity } from '../services/cartStorage';
+import { loadCheckoutCatalog, pricedItems, quoteSelections, type CheckoutCatalog } from '../services/checkoutCatalog';
+import { OrderApiError } from '../services/httpOrderService';
 import { orderService } from '../services/orderService';
-import { useCampaigns } from '../hooks/useCampaigns';
-import { clearIntent, getIntent, saveAccess, saveHistory, saveIntent } from '../services/orderStorage';
-import type { Product } from '../types/product';
-import type { MockOutcome, PurchaseIntent } from '../types/order';
+import { clearIntent, getIntent, rememberCartCheckout, saveAccess, saveHistory, saveIntent, settleCartCheckout } from '../services/orderStorage';
+import { isMoney, isTerminal } from '../types/order';
+import { useCart } from '../contexts/CartContext';
 import { formatPrice } from '../utils/product';
 
 export function CheckoutPage() {
-  const [params] = useSearchParams(); const navigate = useNavigate();
-  const { campaigns, loading: campaignsLoading, error: campaignsError } = useCampaigns();
-  const [product, setProduct] = useState<Product>(); const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const lock = useRef(false);
-  const [intent, setIntent] = useState<PurchaseIntent | null>(() => getIntent());
-  const [outcome, setOutcome] = useState<MockOutcome>('CONFIRMED');
-  const productId = params.get('productId') || ''; const quantity = Number(params.get('quantity')); const color = params.get('color') || undefined;
-  useEffect(() => { let active = true; setLoading(true); setError(''); productService.getProductById(productId).then(p => { if (active) setProduct(p); }).catch(() => { if (active) setError('Không thể tải sản phẩm.'); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [productId]);
-  const activeCampaigns = product ? campaigns.filter(campaign => campaign.status === 'ACTIVE' && campaign.productIds.includes(product.productId)) : [];
-  const campaignLimit = activeCampaigns.reduce<number | undefined>((limit, campaign) =>
-    limit === undefined ? campaign.maxQtyPerOrder : Math.min(limit, campaign.maxQtyPerOrder), undefined);
-  const campaignEndsAt = activeCampaigns.map(campaign => Date.parse(campaign.endTime)).sort((a, b) => a - b)[0];
-  const valid = !!product && Number.isInteger(quantity) && quantity > 0 && quantity <= product.stock &&
-    (campaignsLoading || (campaignLimit !== undefined && quantity <= campaignLimit && campaignEndsAt !== undefined && campaignEndsAt > Date.now())) &&
-    (!color || !!product.colors?.includes(color));
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const cart = useCart();
+  const [intent, setIntent] = useState(getIntent);
+  const [catalog, setCatalog] = useState<{ ids: string; value?: CheckoutCatalog; failed?: boolean }>();
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState('');
+  const [priceNotice, setPriceNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const mounted = useRef(false);
+  const fromCart = params.get('source') === 'cart';
+  const back = fromCart ? '/cart' : '/products';
+  const productId = params.get('productId') || '';
+  const selections = fromCart ? cart.items : productId ? [{
+    productId, quantity: Number(params.get('quantity')), selectedColor: params.get('color') || undefined,
+  }] : [];
+  const productIds = JSON.stringify(selections.map(item => item.productId));
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const ids: string[] = JSON.parse(productIds);
+    if (intent || !ids.length) return;
+    let active = true;
+    setCatalog(undefined);
+    void loadCheckoutCatalog(ids).then(
+      value => { if (active) setCatalog({ ids: productIds, value }); },
+      () => { if (active) setCatalog({ ids: productIds, failed: true }); },
+    );
+    return () => { active = false; };
+  }, [productIds, intent, attempt]);
+
+  const currentCatalog = catalog?.ids === productIds ? catalog : undefined;
+  const quote = currentCatalog?.value ? quoteSelections(selections, currentCatalog.value) : [];
+  const items = intent?.items ?? quote.map(line => line.item);
+  const subtotal = items.reduce((sum, item) => sum + (item.subtotal ?? 0), 0);
+  const valid = quote.length > 0 && quote.every(line => !line.issue && isMoney(line.item.subtotal)) && isMoney(subtotal);
+
   async function submit() {
-    if (lock.current) return; lock.current = true; setBusy(true); setError('');
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    let current = getIntent();
+    let sending = false;
     try {
-      let current = getIntent();
       if (!current) {
-        if (!product || !valid) throw new Error(campaignsError || 'Lựa chọn sản phẩm không hợp lệ hoặc chiến dịch đã kết thúc.');
-        current = { key: crypto.randomUUID(), item: { productId: product.productId, name: product.name, image: product.images[0], quantity, unitPrice: product.price, selectedColor: color }, outcome, createdAt: Date.now() };
-        saveIntent(current); setIntent(current);
+        if (!valid) return;
+        const fresh = await loadCheckoutCatalog(JSON.parse(productIds));
+        if (!mounted.current) return;
+        setCatalog({ ids: productIds, value: fresh });
+        if (fromCart && JSON.stringify(readCart()) !== JSON.stringify(cart.items)) {
+          setError('Giỏ hàng vừa thay đổi. Hãy kiểm tra lại sản phẩm và số lượng.');
+          return;
+        }
+        const latest = quoteSelections(selections, fresh);
+        if (latest.some(line => line.issue)) {
+          setError('Tình trạng sản phẩm đã thay đổi. Hãy kiểm tra lựa chọn trước khi đặt hàng.');
+          return;
+        }
+        if (latest.some((line, index) => line.item.unitPrice !== quote[index]?.item.unitPrice)) {
+          setPriceNotice('Giá vừa thay đổi. Hãy kiểm tra tổng tiền mới trước khi đặt hàng.');
+          return;
+        }
+        current = {
+          key: crypto.randomUUID(), items: pricedItems(latest), createdAt: Date.now(),
+          source: fromCart ? 'cart' : 'buy-now',
+          cartAdditionIds: fromCart ? cart.items.flatMap(item => item.additions.map(addition => addition.id)) : undefined,
+        };
+        saveIntent(current);
+        setIntent(current);
       }
+      sending = true;
       const order = await orderService.submit(current);
-      saveAccess(order.orderId, current.key); saveHistory(order); clearIntent(); setIntent(null);
-      navigate(`/orders/${encodeURIComponent(order.orderId)}/${order.status === 'PENDING' ? 'processing' : 'result'}`);
-    } catch { setError('Chưa xác định được kết quả gửi yêu cầu. Hãy thử lại cùng yêu cầu đã lưu; không tạo yêu cầu mới.'); }
-    finally { lock.current = false; setBusy(false); }
+      rememberCartCheckout(order.orderId, current);
+      saveAccess(order.orderId, current.key);
+      saveHistory(order);
+      settleCartCheckout(order);
+      clearIntent(current.key);
+      if (mounted.current) {
+        setIntent(null);
+        navigate(`/orders/${encodeURIComponent(order.orderId)}/${isTerminal(order.status) ? 'result' : 'processing'}`);
+      }
+    } catch (failure) {
+      if (failure instanceof OrderApiError && failure.definitelyRejected && current) {
+        try {
+          clearIntent(current.key);
+          if (mounted.current) {
+            setIntent(null);
+            setError(failure.message);
+            setAttempt(value => value + 1);
+          }
+        } catch {
+          if (mounted.current) setError('Không thể cập nhật yêu cầu đã lưu trên trình duyệt.');
+        }
+      } else if (mounted.current) {
+        setError(sending ? 'Chưa thể xác nhận đã nhận đơn của bạn. Hãy bấm Thử lại để tiếp tục đơn này.' :
+          'Chưa thể đặt hàng lúc này. Vui lòng thử lại.');
+      }
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy(false);
+    }
   }
-  if ((loading || campaignsLoading) && !intent) return <div className="container page-state">Đang tải sản phẩm và chiến dịch...</div>;
-  if (!intent && !valid) return <div className="container"><EmptyState error title="Không thể xác nhận lựa chọn" description={error || campaignsError || 'Sản phẩm, số lượng hoặc chiến dịch không hợp lệ.'}><Link className="button button-primary" to="/products">Xem sản phẩm</Link></EmptyState></div>;
-  const item = intent?.item || { productId: product!.productId, name: product!.name, image: product!.images[0], quantity, unitPrice: product!.price, selectedColor: color };
-  return <div className="container order-checkout"><div className="order-kicker">● QUY TRÌNH ĐẶT HÀNG BẤT ĐỒNG BỘ</div><h1>Xác nhận yêu cầu đặt hàng</h1><p>Kiểm tra thông tin trước khi gửi yêu cầu đặt hàng.</p><div className="checkout-grid"><div><section className="order-panel"><h2>Luồng xử lý Serverless</h2><p>Quy trình tiếp nhận và xử lý đơn hàng qua SQS & Lambda.</p><div className="order-steps">{['Gửi yêu cầu', 'HTTP 202 Accepted', 'SQS & Lambda Worker', 'DynamoDB · Chốt tồn kho'].map((step, index) => <div key={step}><b>BƯỚC {index + 1}</b><strong>{step}</strong></div>)}</div></section><section className="order-panel"><h2>Thông tin yêu cầu đặt hàng</h2><OrderSummary item={item} /></section></div><section className="order-panel checkout-total"><h2>Tóm tắt đơn hàng</h2><div className="order-summary-head"><span>Đơn giá Flash Sale</span><span>{formatPrice(item.unitPrice)}</span></div><div className="order-summary-head"><span>Số lượng đặt</span><span>{item.quantity} sản phẩm</span></div><div className="order-summary-head"><span>Phí vận chuyển</span><span>Miễn phí</span></div><div className="order-summary-head"><strong>Tổng thanh toán</strong><strong className="order-price">{formatPrice(item.unitPrice * item.quantity)}</strong></div><p className="order-notice">Đơn hàng sẽ được tiếp nhận và xử lý theo thứ tự qua hàng đợi SQS.</p>{intent && <p className="order-notice" role="status">Có yêu cầu chưa xác định kết quả từ phiên trước. Tiếp tục sẽ gửi lại đúng yêu cầu đã lưu.</p>}{error && <p className="order-error" role="alert">{error}</p>}<Button className="order-full-button" disabled={busy} onClick={submit}>{busy ? 'Đang gửi...' : intent ? 'Thử lại yêu cầu đã lưu' : 'GỬI YÊU CẦU ĐẶT HÀNG'}</Button></section></div></div>;
+
+  if (!intent && (!selections.length || (fromCart && cart.storageError))) return <div className="container page-state">
+    <EmptyState title={cart.storageError ? 'Không thể mở giỏ hàng' : 'Chưa chọn sản phẩm'} description={cart.storageError || 'Hãy chọn sản phẩm để đặt hàng.'}>
+      <Link className="button button-primary" to={back}>{fromCart ? 'Về giỏ hàng' : 'Xem sản phẩm'}</Link>
+    </EmptyState>
+  </div>;
+  if (!intent && !currentCatalog) return <div className="container page-state" role="status">Đang kiểm tra giá và tồn kho...</div>;
+  if (!intent && currentCatalog?.failed) return <div className="container page-state">
+    <EmptyState error title="Không thể kiểm tra sản phẩm" description="Vui lòng tải lại thông tin trước khi đặt hàng.">
+      <Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button>
+    </EmptyState>
+  </div>;
+
+  return <div className="container order-checkout">
+    <h1>Xác nhận đơn hàng</h1>
+    <div className="checkout-grid">
+      <section className="order-panel">
+        <h2>Sản phẩm đặt mua</h2>
+        <OrderItems items={items} />
+        {!intent && quote.map((line, index) => <div key={line.item.productId}>
+          {line.priceChanged && <p className="order-notice" role="status">
+            {line.item.name} đã đổi giá từ {formatPrice(cart.items[index].unitPrice)} sang {formatPrice(line.item.unitPrice!)}.
+          </p>}
+          {line.issue && <p className="order-error" role="alert">{line.item.name} · {line.issue}</p>}
+        </div>)}
+      </section>
+      <section className="order-panel checkout-total checkout-review">
+        <h2>Tóm tắt đơn hàng</h2>
+        <div className="order-summary-head"><span>Số lượng</span><strong>{totalQuantity(items)}</strong></div>
+        <div className="order-summary-head">
+          <span>Tổng dự kiến</span><strong className="order-price">{isMoney(subtotal) ? formatPrice(subtotal) : '—'}</strong>
+        </div>
+        {intent && !busy && !error && <p className="order-notice" role="status">Đơn này đang chờ gửi lại.</p>}
+        {priceNotice && !intent && <p className="order-notice" role="status">{priceNotice}</p>}
+        {error && <p className="order-error" role="alert">{error}</p>}
+        <Button className="order-full-button" disabled={busy || (!intent && !valid)} onClick={() => void submit()}>
+          {busy ? 'Đang đặt hàng…' : intent ? 'Thử lại' : 'Đặt hàng'}
+        </Button>
+        {!intent && <Link className="text-link" to={back}>{fromCart ? 'Về giỏ hàng' : 'Xem sản phẩm'}</Link>}
+      </section>
+    </div>
+  </div>;
 }

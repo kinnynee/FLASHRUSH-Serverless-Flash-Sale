@@ -21,13 +21,17 @@ from botocore.exceptions import ClientError
 db = boto3.resource('dynamodb')
 products = db.Table(os.environ['PRODUCTS_TABLE'])
 orders = db.Table(os.environ['ORDERS_TABLE'])
-campaigns = db.Table(os.environ['CAMPAIGNS_TABLE'])
+campaigns = db.Table(os.environ['CAMPAIGNS_TABLE']) if os.environ.get('CAMPAIGNS_TABLE') else None
 ddb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
 serializer = TypeSerializer()
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 TERMINAL = {'CONFIRMED', 'OUT_OF_STOCK', 'FAILED'}
+MAX_CART_ITEMS = 20
+MAX_REQUEST_BYTES = 16 * 1024
+MAX_ORDER_BYTES = 64 * 1024
+MAX_SAFE_INTEGER = 2**53 - 1
 
 
 def now():
@@ -55,8 +59,59 @@ def read_order(order_id):
     return orders.get_item(Key={'orderId': order_id}, ConsistentRead=True).get('Item')
 
 
+def order_lines(item):
+    if 'items' in item:
+        return item['items']
+    return [{key: item[key] for key in ('productId', 'quantity')}]
+
+
 def public_order(item):
-    return {k: item[k] for k in ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt')}
+    fields = ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt',
+              'confirmedAt', 'subtotal', 'discountAmount', 'totalAmount', 'failureReason')
+    line_fields = ('productId', 'name', 'image', 'quantity', 'unitPrice', 'subtotal')
+    lines = [{key: line[key] for key in line_fields if key in line} for line in order_lines(item)]
+    return {**{key: item[key] for key in fields if key in item}, 'items': lines,
+            'totalQuantity': sum(line['quantity'] for line in lines)}
+
+
+def normalize_checkout(payload):
+    if not isinstance(payload, dict):
+        raise ValueError('Invalid checkout')
+    if 'items' in payload and ('productId' in payload or 'quantity' in payload):
+        raise ValueError('Ambiguous checkout')
+    lines = payload.get('items', [payload])
+    if not isinstance(lines, list) or not lines:
+        raise ValueError('Empty or invalid checkout')
+    quantities = {}
+    for line in lines:
+        if not isinstance(line, dict):
+            raise ValueError('Invalid order line')
+        pid, qty = line.get('productId'), line.get('quantity')
+        if (not isinstance(pid, str) or not pid.strip() or len(pid) > 128 or
+                type(qty) is not int or not 0 < qty <= MAX_SAFE_INTEGER):
+            raise ValueError('Invalid product or quantity')
+        quantities[pid] = quantities.get(pid, 0) + qty
+    if len(quantities) > MAX_CART_ITEMS or sum(quantities.values()) > MAX_SAFE_INTEGER:
+        raise ValueError('Checkout exceeds limits')
+    return [{'productId': pid, 'quantity': qty} for pid, qty in sorted(quantities.items())]
+
+
+def integer_value(value):
+    return isinstance(value, (int, Decimal)) and not isinstance(value, bool) and value == int(value)
+
+
+def snapshot_line(line, product):
+    price = product.get('price')
+    stock = product.get('stock')
+    name, images = product.get('name'), product.get('images', [])
+    image = images[0] if isinstance(images, list) and images else None
+    if (not integer_value(price) or not 0 <= price <= MAX_SAFE_INTEGER or
+            not isinstance(name, str) or not name or not isinstance(image, str) or not image):
+        raise RuntimeError('Invalid catalog pricing or display data')
+    if not integer_value(stock) or stock < 0:
+        raise RuntimeError('Invalid catalog stock')
+    price = int(price)
+    return {**line, 'name': name, 'image': image, 'unitPrice': price, 'subtotal': price * line['quantity']}
 
 
 def parse_time(value):
@@ -111,9 +166,8 @@ def campaign_payload(payload, current=None):
     return record
 
 
-def active_campaign_limit(product_id, quantity):
-    current = datetime.now(timezone.utc)
-    matching = [item for item in read_campaign_items() if product_id in item.get('productIds', [])]
+def active_campaign_limit(product_id, quantity, campaign_items, current):
+    matching = [item for item in campaign_items if product_id in item.get('productIds', [])]
     active = [item for item in matching if campaign_status(item, current) == 'ACTIVE']
     if not active:
         return 'CAMPAIGN_NOT_ACTIVE'
@@ -140,8 +194,11 @@ def enqueue(item):
             raise
         current = read_order(item['orderId'])
         return current['status'] in TERMINAL or current.get('enqueueState') == 'SENT'
-    message = {k: item[k] for k in ('orderId', 'productId', 'quantity', 'correlationId')}
-    message['schemaVersion'] = '1.0'
+    message = {k: item[k] for k in ('orderId', 'correlationId')}
+    if 'productId' in item:
+        message.update(schemaVersion='1.0', productId=item['productId'], quantity=item['quantity'])
+    else:
+        message['schemaVersion'] = '2.0'
     try:
         sqs.send_message(QueueUrl=os.environ['QUEUE_URL'], MessageBody=json.dumps(message, default=int))
     except Exception:
@@ -229,7 +286,7 @@ def route(event):
         campaigns.put_item(Item=item, ConditionExpression='attribute_exists(campaignId)')
         return response(200, public_campaign(item))
     if method == 'GET' and path.startswith('/products/'):
-        item = products.get_item(Key={'productId': path.split('/')[-1]}).get('Item')
+        item = products.get_item(Key={'productId': path.split('/')[-1]}, ConsistentRead=True).get('Item')
         return response(200, item) if item else error(404, 'PRODUCT_NOT_FOUND')
     if method == 'GET' and path.startswith('/orders/'):
         item = read_order(path.split('/')[-1])
@@ -248,25 +305,41 @@ def route(event):
         return error(400, 'INVALID_IDEMPOTENCY_KEY')
     raw = event.get('body') or '{}'
     if event.get('isBase64Encoded'):
-        raw = base64.b64decode(raw).decode()
-    payload = json.loads(raw)
-    if not isinstance(payload, dict):
+        if len(raw) > 4 * ((MAX_REQUEST_BYTES + 2) // 3):
+            return error(400, 'INVALID_REQUEST')
+        raw = base64.b64decode(raw, validate=True).decode()
+    if len(raw.encode()) > MAX_REQUEST_BYTES:
         return error(400, 'INVALID_REQUEST')
-    pid, qty = payload.get('productId'), payload.get('quantity')
-    if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or qty < 1:
-        return error(400, 'INVALID_REQUEST')
-    payload_hash = digest(json.dumps({'productId': pid, 'quantity': qty}, sort_keys=True, separators=(',', ':')))
+    lines = normalize_checkout(json.loads(raw))
+    single = lines[0] if len(lines) == 1 else {}
+    canonical = single or {'items': lines}
+    payload_hash = digest(json.dumps(canonical, sort_keys=True, separators=(',', ':')))
     oid = 'ord_' + digest('flashrush-demo:v1:' + key)[:32]
     item = read_order(oid)
     if not item:
-        if not products.get_item(Key={'productId': pid}).get('Item'):
+        catalog = [products.get_item(Key={'productId': line['productId']}, ConsistentRead=True).get('Item')
+                   for line in lines]
+        if any(product is None for product in catalog):
             return error(404, 'PRODUCT_NOT_FOUND')
-        campaign_error = active_campaign_limit(pid, qty)
-        if campaign_error:
-            return error(409, campaign_error)
-        item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'status': 'PENDING',
-                'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': now(),
-                'updatedAt': now(), 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0, 'correlationId': str(uuid.uuid4())}
+        campaign_items = read_campaign_items()
+        current = datetime.now(timezone.utc)
+        for line in lines:
+            campaign_error = active_campaign_limit(line['productId'], line['quantity'], campaign_items, current)
+            if campaign_error:
+                return error(409, campaign_error)
+        snapshots = [snapshot_line(line, product) for line, product in zip(lines, catalog)]
+        subtotal = sum(line['subtotal'] for line in snapshots)
+        if subtotal > MAX_SAFE_INTEGER:
+            return error(400, 'INVALID_REQUEST')
+        timestamp = now()
+        item = {'orderId': oid, **single, 'status': 'PENDING', 'items': snapshots,
+                'totalQuantity': sum(line['quantity'] for line in lines),
+                'subtotal': subtotal, 'discountAmount': 0, 'totalAmount': subtotal,
+                'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': timestamp,
+                'updatedAt': timestamp, 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0,
+                'correlationId': str(uuid.uuid4())}
+        if len(json.dumps(values(item), ensure_ascii=False).encode()) > MAX_ORDER_BYTES:
+            return error(400, 'ORDER_TOO_LARGE')
         try:
             orders.put_item(Item=item, ConditionExpression='attribute_not_exists(orderId)')
         except ClientError as exc:
@@ -282,41 +355,95 @@ def route(event):
     return response(202, {**public_order(item), 'accepted': True, 'statusUrl': '/orders/' + oid})
 
 
+def order_transition(order_id, status, reason=None):
+    expression = 'SET #s=:next, updatedAt=:at'
+    parameters = {':next': status, ':pending': 'PENDING', ':at': now()}
+    if status == 'CONFIRMED':
+        expression += ', confirmedAt=:at'
+    if reason:
+        expression += ', failureReason=:reason'
+        parameters[':reason'] = reason
+    return {'Update': {'TableName': orders.name, 'Key': values({'orderId': order_id}),
+        'UpdateExpression': expression, 'ConditionExpression': '#s=:pending',
+        'ExpressionAttributeNames': {'#s': 'status'}, 'ExpressionAttributeValues': values(parameters)}}
+
+
+def stock_failure(order_id, line):
+    key = {'productId': line['productId']}
+    product = products.get_item(Key=key, ConsistentRead=True).get('Item')
+    stock = product.get('stock') if product else None
+    status, reason = 'FAILED', 'INVALID_PRODUCT_STOCK'
+    parameters = {}
+    if not product:
+        condition, reason = 'attribute_not_exists(productId)', 'PRODUCT_REMOVED'
+    elif not isinstance(stock, (int, Decimal)) or isinstance(stock, bool):
+        condition = 'attribute_exists(productId) AND (attribute_not_exists(stock) OR NOT attribute_type(stock, :numeric))'
+        parameters[':numeric'] = 'N'
+    elif not integer_value(stock) or stock < 0:
+        condition = 'attribute_exists(productId) AND stock=:invalid'
+        parameters[':invalid'] = stock
+    elif stock < line['quantity']:
+        status, reason = 'OUT_OF_STOCK', None
+        condition = 'attribute_exists(productId) AND stock=:observed'
+        parameters[':observed'] = stock
+    else:
+        return False
+    check = {'TableName': products.name, 'Key': values(key), 'ConditionExpression': condition}
+    if parameters:
+        check['ExpressionAttributeValues'] = values(parameters)
+    try:
+        ddb.transact_write_items(TransactItems=[{'ConditionCheck': check}, order_transition(order_id, status, reason)])
+    except ClientError as exc:
+        if (exc.response['Error']['Code'] != 'TransactionCanceledException' or
+                (read_order(order_id) or {}).get('status') not in TERMINAL):
+            raise
+    return True
+
+
 def process(message):
-    if message.get('schemaVersion') != '1.0':
+    version = message.get('schemaVersion')
+    if version not in ('1.0', '2.0'):
         raise ValueError('Unsupported message')
     item = read_order(message['orderId'])
     if not item:
         raise ValueError('Missing order')
+    lines = order_lines(item)
+    if version == '1.0':
+        if (len(lines) != 1 or type(message.get('quantity')) is not int or
+                any(message.get(key) != lines[0][key] for key in ('productId', 'quantity'))):
+            raise ValueError('Message mismatch')
+    elif len(lines) < 2 or 'correlationId' not in message:
+        raise ValueError('Message mismatch')
+    if 'correlationId' in message and message['correlationId'] != item['correlationId']:
+        raise ValueError('Message correlation mismatch')
     if item['status'] in TERMINAL:
         log.info('worker_terminal_noop orderId=%s', item['orderId'])
         return
-    if any(message.get(k) != item[k] for k in ('productId', 'quantity')):
-        raise ValueError('Message mismatch')
-    order_update = {'TableName': orders.name, 'Key': values({'orderId': item['orderId']}),
-        'UpdateExpression': 'SET #s=:next, updatedAt=:at', 'ConditionExpression': '#s=:pending',
-        'ExpressionAttributeNames': {'#s': 'status'},
-        'ExpressionAttributeValues': values({':next': 'CONFIRMED', ':pending': 'PENDING', ':at': now()})}
+    quantities = {line['productId']: line['quantity'] for line in lines}
+    if (not 0 < len(lines) <= MAX_CART_ITEMS or len(quantities) != len(lines) or
+            any(not integer_value(qty) or not 0 < qty <= MAX_SAFE_INTEGER for qty in quantities.values())):
+        raise ValueError('Invalid stored order lines')
+    actions = [{'Update': {'TableName': products.name, 'Key': values({'productId': pid}),
+        'UpdateExpression': 'SET stock=stock-:qty',
+        'ConditionExpression': 'attribute_exists(productId) AND attribute_type(stock, :numeric) AND stock>=:qty',
+        'ExpressionAttributeValues': values({':qty': qty, ':numeric': 'N'})}}
+        for pid, qty in quantities.items()]
+    actions.append(order_transition(item['orderId'], 'CONFIRMED'))
     try:
-        ddb.transact_write_items(TransactItems=[{'Update': {
-            'TableName': products.name, 'Key': values({'productId': item['productId']}),
-            'UpdateExpression': 'SET stock=stock-:qty', 'ConditionExpression': 'stock>=:qty',
-            'ExpressionAttributeValues': values({':qty': item['quantity']})}}, {'Update': order_update}])
-        return
+        ddb.transact_write_items(TransactItems=actions)
     except ClientError as exc:
         if exc.response['Error']['Code'] != 'TransactionCanceledException':
             raise
-        if read_order(item['orderId'])['status'] in TERMINAL:
+        if (read_order(item['orderId']) or {}).get('status') in TERMINAL:
             return
         reasons = exc.response.get('CancellationReasons', [])
-        if not reasons or reasons[0].get('Code') != 'ConditionalCheckFailed':
+        if (len(reasons) != len(actions) or reasons[-1].get('Code') != 'None' or
+                any(reason.get('Code') not in ('None', 'ConditionalCheckFailed') for reason in reasons)):
             raise
-    # Stock shortage is verified atomically with the OOS transition.
-    order_update['ExpressionAttributeValues'][':next'] = {'S': 'OUT_OF_STOCK'}
-    ddb.transact_write_items(TransactItems=[{'ConditionCheck': {
-        'TableName': products.name, 'Key': values({'productId': item['productId']}),
-        'ConditionExpression': 'attribute_exists(productId) AND stock<:qty',
-        'ExpressionAttributeValues': values({':qty': item['quantity']})}}, {'Update': order_update}])
+        for line, reason in zip(lines, reasons):
+            if reason['Code'] == 'ConditionalCheckFailed' and stock_failure(item['orderId'], line):
+                return
+        raise
 
 
 def worker(event, context):

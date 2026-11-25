@@ -7,6 +7,8 @@ import { HomePage } from './pages/HomePage';
 import { ProductListingPage } from './pages/ProductListingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
+import { CartPage } from './pages/CartPage';
+import { CartProvider } from './contexts/CartContext';
 import { OrderProcessingPage } from './pages/OrderProcessingPage';
 import { OrderResultPage } from './pages/OrderResultPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
@@ -15,7 +17,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MonitoringDashboardPage } from './pages/MonitoringDashboardPage';
 
 function StorefrontLayout() {
-  return <><Header /><main id="main-content" tabIndex={-1}><Outlet /></main><Footer /></>;
+  return <CartProvider><Header /><main id="main-content" tabIndex={-1}><Outlet /></main><Footer /></CartProvider>;
 }
 
 export default function App() {
@@ -25,6 +27,7 @@ export default function App() {
     const titles: Record<string, string> = {
       '/': 'Flash Sale hôm nay',
       '/products': 'Sản phẩm Flash Sale',
+      '/cart': 'Giỏ hàng',
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
       '/admin/orders': 'Đơn hàng · Quản trị demo',
@@ -42,6 +45,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductListingPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrderHistoryPage />} />
         <Route path="/orders/:orderId/processing" element={<OrderProcessingPage />} />

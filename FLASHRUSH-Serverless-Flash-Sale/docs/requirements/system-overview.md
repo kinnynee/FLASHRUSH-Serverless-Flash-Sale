@@ -1,4 +1,7 @@
 FLASHRUSH — System Overview & MVP Scope
+
+Phần bên dưới giữ contract MVP v1.1 để đối chiếu. Phần triển khai F10 trên code dùng contract giỏ hàng nhiều sản phẩm và vẫn tiếp nhận request v1.1. Xem [đặc tả F10](../features/F10-atomic-cart-checkout.md).
+
 Tên dự án: Building a High-Concurrency Serverless Flash Sale System on AWS
 Tài liệu: System Overview / Business Analysis Baseline
 Phiên bản: 1.1 — Revised Draft, pending team approval

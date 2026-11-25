@@ -26,8 +26,8 @@ flowchart LR
 
 IAM scopes runtime access. CloudFormation manages application resources; deployment artifacts use a separate private S3 bucket. No additional application service is introduced by the CloudFront Function.
 
-API: GET /products, GET /products/{productId}, POST /orders, GET /orders/{orderId}. POST requires canonical UUIDv4 idempotency key and quantity=1; GET order requires original key as bearer token. Preserve anonymous capability semantics; do not claim account authentication.
+The order API accepts `items[]` and the legacy single-product form. POST requires a canonical UUIDv4 idempotency key. GET order requires the original key as an anonymous bearer token. Product quantities follow the active campaign policy. See the [F10 contract](../features/F10-atomic-cart-checkout.md).
 
-Conditional order creation, 30-second enqueue lease, three-send bound, duplicate-safe stock/order transaction. Send exceptions remain UNKNOWN conservatively; distinguishing proven rejection from ambiguous transport failure requires explicit contract agreement. No automatic FAILED transition or pending scheduler. Manual overdue threshold defaults to 300s operationally; business SLA remains pending.
+Conditional order creation, a 30-second enqueue lease and a three-send bound protect retries. A single transaction commits stock decrements for every item and confirms the order. Uncertain sends remain UNKNOWN. Technical worker failures preserve PENDING for retry. The manual overdue threshold defaults to 300 seconds and the business SLA remains pending.
 
 Review decisions outstanding: approve this baseline; agree UNKNOWN semantics and overdue SLA; choose Workshop host; authorize live failure/cleanup rehearsal. Admin/Monitoring simulated. Current AWS deployment not verified.

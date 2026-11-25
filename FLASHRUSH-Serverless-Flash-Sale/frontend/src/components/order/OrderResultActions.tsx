@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom';
 import type { OrderStatus } from '../../types/order';
-export function OrderResultActions({ status, onRefresh }: { status: OrderStatus; onRefresh(): void }) {
-  return <div className="order-actions">{status === 'FAILED' ? <><button className="button button-primary" onClick={onRefresh}>Xem trạng thái đơn</button><Link className="button order-outline" to="/">Về trang chủ</Link></> : <><Link className="button button-primary" to={status === 'OUT_OF_STOCK' ? '/products' : '/orders'}>{status === 'OUT_OF_STOCK' ? 'Xem sản phẩm khác' : 'Xem đơn hàng'}</Link><Link className="button order-outline" to={status === 'OUT_OF_STOCK' ? '/orders' : '/products'}>{status === 'OUT_OF_STOCK' ? 'Xem đơn hàng' : 'Tiếp tục xem sản phẩm'}</Link></>}</div>;
+
+export function OrderResultActions({ status }: { status: OrderStatus }) {
+  const confirmed = status === 'CONFIRMED';
+  return <div className="order-actions">
+    <Link className="button button-primary" to={confirmed ? '/orders' : '/cart'}>
+      {confirmed ? 'Đơn hàng của tôi' : 'Về giỏ hàng'}
+    </Link>
+    <Link className="button order-outline" to="/products">Tiếp tục mua sắm</Link>
+  </div>;
 }

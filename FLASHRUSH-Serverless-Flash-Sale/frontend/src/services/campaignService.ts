@@ -59,7 +59,7 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new Error('Chưa cấu hình API chiến dịch.');
   const response = await fetch(`${base.replace(/\/$/, '')}${path}`, {
-    ...init, headers: { 'Content-Type': 'application/json', ...init?.headers }, signal: AbortSignal.timeout(10000),
+    cache: 'no-store', ...init, headers: { 'Content-Type': 'application/json', ...init?.headers }, signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { code?: string } } | undefined;

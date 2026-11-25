@@ -50,10 +50,11 @@ def template(bucket, code_key):
         variables = {'PRODUCTS_TABLE': ref('Products'), 'ORDERS_TABLE': ref('Orders'), 'QUEUE_URL': ref('Queue')}
         if name == 'Api':
             variables['CAMPAIGNS_TABLE'] = ref('Campaigns')
+        dependencies = [name+'Log', 'Worker'] if name == 'Api' else name+'Log'
         resource(name, 'Lambda::Function', {'FunctionName': 'flashrush-lab-'+handler, 'Runtime': 'python3.12',
             'Handler': 'app.'+handler, 'Role': arn(role), 'Timeout': 15, 'MemorySize': 256,
             'Code': {'S3Bucket': bucket, 'S3Key': code_key}, 'Environment': {'Variables': variables},
-            'Architectures': ['arm64']}, DependsOn=name+'Log')
+            'Architectures': ['arm64']}, DependsOn=dependencies)
     resource('Mapping', 'Lambda::EventSourceMapping', {'EventSourceArn': arn('Queue'), 'FunctionName': ref('Worker'),
         'BatchSize': 1, 'MaximumBatchingWindowInSeconds': 0, 'FunctionResponseTypes': ['ReportBatchItemFailures'],
         'ScalingConfig': {'MaximumConcurrency': 5}, 'Enabled': True})
@@ -83,7 +84,7 @@ def template(bucket, code_key):
     resource('SpaRewrite', 'CloudFront::Function', {
         'Name': 'flashrush-lab-spa-rewrite', 'AutoPublish': True,
         'FunctionConfig': {'Comment': 'Rewrite application routes only; preserve asset errors', 'Runtime': 'cloudfront-js-2.0'},
-        'FunctionCode': "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"})
+        'FunctionCode': "function handler(event) { var r = event.request; if (/^\\/(products|cart|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"})
     resource('Distribution', 'CloudFront::Distribution', {'DistributionConfig': {'Enabled': True, 'DefaultRootObject': 'index.html',
         'PriceClass': 'PriceClass_100', 'HttpVersion': 'http2', 'IPV6Enabled': True,
         'Origins': [{'Id': 'website', 'DomainName': {'Fn::GetAtt': ['Website', 'RegionalDomainName']},

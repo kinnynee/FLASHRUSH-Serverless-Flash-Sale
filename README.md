@@ -105,6 +105,8 @@ flowchart TB
 
 ## 🛒 Chức năng MVP
 
+F10 bổ sung giỏ hàng nhiều sản phẩm, một yêu cầu checkout và một giao dịch chốt tồn kho cho toàn bộ đơn. Xem hợp đồng API, hướng dẫn demo và kiểm thử tại [tài liệu F10](FLASHRUSH-Serverless-Flash-Sale/docs/features/F10-atomic-cart-checkout.md).
+
 **Luồng khách hàng**
 
 - Trang chủ Flash Sale, danh sách và chi tiết sản phẩm.

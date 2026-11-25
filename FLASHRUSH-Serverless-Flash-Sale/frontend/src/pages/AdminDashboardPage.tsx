@@ -29,7 +29,7 @@ function OrderDetail({ order }: { order?: OrderRecord }) {
         <div><h2>#{order.orderId}</h2><p>Tạo lúc {formatSnapshotTime(order.createdAt)} (GMT+7)</p></div>
         <OrderStatusBadge status={order.status} />
       </div>
-      <OrderSummary item={order.item} />
+      <OrderSummary {...order} orderId={undefined} createdAt={undefined} />
       {backLink}
     </section>
   );
