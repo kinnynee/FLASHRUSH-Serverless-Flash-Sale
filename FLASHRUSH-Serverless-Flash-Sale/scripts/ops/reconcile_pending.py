@@ -58,6 +58,8 @@ def main():
         outputs = stack_outputs(session, args)
     os.environ['CAMPAIGNS_TABLE'] = (args.namespace+'-campaigns') if args.namespace else outputs['CampaignsTable']
     os.environ.update(PRODUCTS_TABLE=outputs['ProductsTable'], ORDERS_TABLE=outputs['OrdersTable'], QUEUE_URL=outputs['QueueUrl'])
+    if outputs.get('CustomersTable'):
+        os.environ['CUSTOMERS_TABLE'] = outputs['CustomersTable']
     boto3.DEFAULT_SESSION = session
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
     import app
@@ -73,6 +75,20 @@ def main():
     for item in pending:
         report = inspect(item, time.time(), args.min_age_seconds)
         report['action'] = 'investigate' if report['overdue'] else 'wait'
+        if item.get('ownerId'):
+            if (args.resend or args.recover) and report['overdue']:
+                import customer
+                group = customer.read(item['ownerId'], 'CHECKOUT#' + item['checkoutId'])
+                if args.recover:
+                    customer.process_checkout({'userId': item['ownerId'], 'checkoutId': item['checkoutId']})
+                else:
+                    customer.enqueue_checkout(group)
+                report['action'] = 'customer_group_reconciled'
+            current = app.read_order(item['orderId'])
+            unresolved += int(report['overdue'] and current['status'] == 'PENDING')
+            reports.append(report)
+            print(json.dumps(report))
+            continue
         if args.resend and report['eligible']:
             report['action'] = 'enqueued' if app.enqueue(item) else 'unresolved'
         if args.recover and report['overdue'] and report['ageSeconds'] is not None:

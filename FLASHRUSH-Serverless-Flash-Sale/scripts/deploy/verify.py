@@ -24,8 +24,14 @@ pid = 'load-test-'+run
 deadline = (datetime.now(timezone.utc)+timedelta(days=3)).isoformat()
 product = {'productId': pid, 'name': 'FLASHRUSH concurrency test', 'description': 'Live AWS lab test product',
     'category': 'Lab', 'price': 199000, 'priceVnd': 199000, 'originalPrice': 299000,
-    'stock': 10, 'initialStock': 10, 'images': ['/images/headphones.jpg'], 'isFlashSale': True, 'saleEndsAt': deadline}
+    'stock': 10, 'initialStock': 10, 'images': ['/images/headphones.jpg'], 'isFlashSale': True,
+    'saleStartsAt': (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat(), 'saleEndsAt': deadline}
 products.put_item(Item=product, ConditionExpression='attribute_not_exists(productId)')
+db.Table(outputs['CampaignsTable']).put_item(Item={
+    'campaignId': 'verification-' + run, 'name': 'Verification ' + run,
+    'startTime': product['saleStartsAt'], 'endTime': deadline,
+    'productIds': [pid, 'duplicate-test-' + run], 'maxQtyPerOrder': 1,
+}, ConditionExpression='attribute_not_exists(campaignId)')
 
 
 def request(method, path, key='', payload=None):
@@ -50,6 +56,8 @@ def submit(key):
         codes.append(status)
         if status in (200, 202):
             return {'orderId': body['orderId'], 'codes': codes, 'key': key}
+        if status == 409 and body.get('error', {}).get('code') == 'SALE_SOLD_OUT':
+            return {'soldOut': True, 'codes': codes, 'key': key}
         if status not in (0, 429, 500, 503):
             break
         time.sleep(min(0.5+attempt*0.2, 3))
@@ -60,6 +68,7 @@ start = time.time()
 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
     results = list(pool.map(submit, [str(uuid.uuid4()) for _ in range(100)]))
 accepted = [r for r in results if 'orderId' in r]
+rejected_sold_out = sum(bool(r.get('soldOut')) for r in results)
 until = time.time()+180
 items = []
 while time.time() < until:
@@ -81,7 +90,11 @@ if first:
     duplicate_pid = 'duplicate-test-' + run
     products.put_item(Item={**product, 'productId': duplicate_pid, 'stock': 2, 'initialStock': 2}, ConditionExpression='attribute_not_exists(productId)')
     duplicate_key = str(uuid.uuid4())
-    status, duplicate = request('POST', '/orders', duplicate_key, {'productId': duplicate_pid, 'quantity': 1})
+    for attempt in range(10):
+        status, duplicate = request('POST', '/orders', duplicate_key, {'productId': duplicate_pid, 'quantity': 1})
+        if status not in (0, 429, 500, 503):
+            break
+        time.sleep(1)
     duplicate_order = None
     if status in (200, 202):
         until = time.time() + 90
@@ -109,13 +122,17 @@ if first:
         checks['duplicateTerminalUnchanged'] = orders.get_item(Key={'orderId': duplicate_order['orderId']}, ConsistentRead=True)['Item']['status'] == 'CONFIRMED'
 checks['catalogRead'] = request('GET', '/products')[0] == 200
 report = {'timestamp': datetime.now(timezone.utc).isoformat(), 'region': args.region, 'runId': run, 'productId': pid,
-    'submittedUnique': 100, 'acceptedUnique': len(accepted), 'terminal': sum(counts[s] for s in ('CONFIRMED', 'OUT_OF_STOCK', 'FAILED')),
+    'submittedUnique': 100, 'acceptedUnique': len(accepted), 'rejectedSoldOut': rejected_sold_out,
+    'terminal': sum(counts[s] for s in ('CONFIRMED', 'OUT_OF_STOCK', 'FAILED')),
     'states': counts, 'initialStock': 10, 'finalStock': stock, 'seconds': round(time.time()-start, 2),
     'httpAttempts': {str(c): sum(r['codes'].count(c) for r in results) for c in set(c for r in results for c in r['codes'])},
-    'orderSnapshots': [{k: item[k] for k in ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt')} for item in items],
+    'orderSnapshots': [{**{k: item[k] for k in ('orderId', 'productId', 'status', 'createdAt', 'updatedAt')},
+                        'quantity': int(item['quantity'])} for item in items],
     'checks': checks, 'orderIds': [r['orderId'] for r in accepted]}
 report['manifest'] = manifest(args, 'verify', runId=run, outputs=outputs, status='completed', maxWorkers=10)
-report['pass'] = len(accepted) == 100 and counts == {'CONFIRMED': 10, 'OUT_OF_STOCK': 90, 'PENDING': 0, 'FAILED': 0} and stock == 0 and all(checks.values())
+report['pass'] = (len(accepted) + rejected_sold_out == 100 and counts['CONFIRMED'] == 10
+                  and counts['OUT_OF_STOCK'] + rejected_sold_out == 90
+                  and counts['PENDING'] == counts['FAILED'] == 0 and stock == 0 and all(checks.values()))
 target = root/'tests/evidence'/('aws-'+run+'.json')
 target.write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
 print(json.dumps({k: v for k, v in report.items() if k != 'orderIds'}, indent=2))

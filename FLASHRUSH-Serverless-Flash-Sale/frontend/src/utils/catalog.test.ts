@@ -29,7 +29,7 @@ describe("Catalog pagination", () => {
   it("rejects malformed or unbounded page sizes and page numbers", () => {
     for (const page of ["-1", "NaN", "Infinity", "1.5", "9007199254740992"]) {
       expect(paginate(items, page, "999999").page).toBe(1);
-      expect(paginate(items, page, "999999").pageSize).toBe(8);
+      expect(paginate(items, page, "999999").pageSize).toBe(12);
     }
     expect(paginate(items, "999", "16")).toMatchObject({
       page: 2,

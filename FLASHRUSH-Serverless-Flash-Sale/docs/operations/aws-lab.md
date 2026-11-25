@@ -1,5 +1,18 @@
 # FLASHRUSH AWS lab
 
+## Current deployment - 2026-11-25
+
+- Account `303278700480`, profile `flashrush` (AWS CLI console login), region `us-east-1`, stack `flashrush-lab`.
+- Website: https://d1jcrzj4650vey.cloudfront.net
+- API: https://7h0r2fxsha.execute-api.us-east-1.amazonaws.com
+- Pass `--profile flashrush --region us-east-1 --account 303278700480 --stack flashrush-lab` to deployment, publication, verification and reconciliation commands. Older profile names and URLs below are historical.
+- Both Lambda handlers require `CAMPAIGNS_TABLE` because they import the same module. Admin campaign mutation routes require AWS IAM signed requests; the browser admin form does not yet implement authentication/signing.
+- Publication seeds a seven-day `flashrush-demo` campaign and missing product start times, preserving existing stock and campaign records. Frontend local configuration uses the live API.
+- Live verification [d5e81c1c](../../tests/evidence/aws-d5e81c1c.json) passed: 100 unique requests, 29 accepted (10 CONFIRMED, 19 OUT_OF_STOCK), 71 rejected with SALE_SOLD_OUT, final stock 0. Duplicate delivery did not decrement stock again; token and replay checks passed. This reflects the current early sold-out rejection behavior, not the historical 100-accepted contract.
+- Browser checkout confirmed Sony order `ord_89a1997a4dbe495b104263123caa6a31`. Website and deep link returned HTTP 200, unsigned admin request returned 403, localhost CORS passed. Reconciliation found zero pending orders; DLQ visible/in-flight counts were zero.
+- Local checks passed: 33 frontend tests, 15 backend tests, six deployment guard tests, production build. Python dependencies were installed from `requirements-dev.txt` (boto3/botocore 1.44.11, moto 5.2.6); this run did not use the older lock file.
+- Test fixtures and orders remain in the lab for inspection. Earlier failed-run evidence is retained. SNS topic and alarms exist, but email subscription/delivery was not configured in this deployment. Dashboard metrics remain simulated. Resources remain active and can incur AWS charges.
+
 Implementation follows the v1.1 draft as a lab baseline. This deployment does not record team ADR approval. No payment or account authentication is implemented. The order token is an anonymous bearer capability. Admin and Monitoring dashboards retain simulated data and have no privileged API.
 
 ## Environment

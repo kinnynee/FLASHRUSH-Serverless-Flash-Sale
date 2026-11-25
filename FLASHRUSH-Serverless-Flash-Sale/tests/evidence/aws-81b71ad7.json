@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-11-25T05:56:04.476231+00:00",
+  "region": "us-east-1",
+  "runId": "81b71ad7",
+  "productId": "load-test-81b71ad7",
+  "submittedUnique": 100,
+  "acceptedUnique": 0,
+  "terminal": 0,
+  "states": {
+    "CONFIRMED": 0,
+    "OUT_OF_STOCK": 0,
+    "PENDING": 0,
+    "FAILED": 0
+  },
+  "initialStock": 10,
+  "finalStock": 10,
+  "seconds": 17.84,
+  "httpAttempts": {
+    "409": 100,
+    "429": 12
+  },
+  "orderSnapshots": [],
+  "checks": {
+    "catalogRead": true
+  },
+  "orderIds": [],
+  "manifest": "C:\\work on AWS\\FLASHRUSH-Serverless-Flash-Sale\\FLASHRUSH-Serverless-Flash-Sale\\.build\\manifests\\20261125T055604532224Z-verify.json",
+  "pass": false
+}
