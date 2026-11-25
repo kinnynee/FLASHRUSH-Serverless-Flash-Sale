@@ -78,8 +78,51 @@ def campaign_status(item, current=None):
     return 'ACTIVE'
 
 
-def public_campaign(item):
-    return {**item, 'status': campaign_status(item)}
+def sale_status(start, end, current, sold_out=False):
+    if sold_out:
+        return 'SOLD_OUT'
+    if current < parse_time(start):
+        return 'UPCOMING'
+    if current > parse_time(end):
+        return 'ENDED'
+    return 'LIVE'
+
+
+def campaign_products(item):
+    return [products.get_item(Key={'productId': pid}).get('Item')
+            for pid in item.get('productIds', [])]
+
+
+def public_campaign(item, current=None):
+    current = current or datetime.now(timezone.utc)
+    stock_items = campaign_products(item)
+    sold_out = bool(stock_items) and all(not product or product.get('stock', 0) <= 0 for product in stock_items)
+    status = campaign_status(item, current)
+    return {**item, 'status': status, 'serverTime': current.isoformat(),
+            'saleStartsAt': parse_time(item['startTime']).isoformat(),
+            'saleEndsAt': parse_time(item['endTime']).isoformat(),
+            'saleStatus': sale_status(item['startTime'], item['endTime'], current, sold_out)}
+
+
+def public_product(item, current=None, campaign_items=None):
+    current = current or datetime.now(timezone.utc)
+    campaign_items = campaign_items if campaign_items is not None else read_campaign_items()
+    matches = [campaign for campaign in campaign_items
+               if item['productId'] in campaign.get('productIds', [])]
+    if matches:
+        # Prefer the live window, otherwise the next sale, then the most recent one.
+        matches.sort(key=lambda campaign: (campaign_status(campaign, current) != 'ACTIVE',
+                                            parse_time(campaign['startTime'])))
+        sale = matches[0]
+        start, end = sale['startTime'], sale['endTime']
+    else:
+        start = item.get('saleStartsAt', item.get('saleEndsAt'))
+        end = item.get('saleEndsAt')
+        if not start or not end:
+            start = end = current.isoformat()
+    return {**item, 'serverTime': current.isoformat(),
+            'saleStartsAt': parse_time(start).isoformat(), 'saleEndsAt': parse_time(end).isoformat(),
+            'saleStatus': sale_status(start, end, current, item.get('stock', 0) <= 0)}
 
 
 def read_campaign_items():
@@ -111,12 +154,14 @@ def campaign_payload(payload, current=None):
     return record
 
 
-def active_campaign_limit(product_id, quantity):
-    current = datetime.now(timezone.utc)
+def active_campaign_limit(product_id, quantity, current=None):
+    current = current or datetime.now(timezone.utc)
     matching = [item for item in read_campaign_items() if product_id in item.get('productIds', [])]
     active = [item for item in matching if campaign_status(item, current) == 'ACTIVE']
     if not active:
-        return 'CAMPAIGN_NOT_ACTIVE'
+        if matching and any(parse_time(item['startTime']) > current for item in matching):
+            return 'SALE_NOT_ACTIVE'
+        return 'SALE_ENDED'
     if any(quantity > item['maxQtyPerOrder'] for item in active):
         return 'CAMPAIGN_QUANTITY_LIMIT'
     return None
@@ -190,11 +235,15 @@ def route(event):
             if 'LastEvaluatedKey' not in page:
                 break
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
-        return response(200, {'items': items})
+        current = datetime.now(timezone.utc)
+        campaign_items = read_campaign_items()
+        return response(200, {'serverTime': current.isoformat(),
+                              'items': [public_product(item, current, campaign_items) for item in items]})
     if method == 'GET' and path == '/campaigns':
-        items = [public_campaign(item) for item in read_campaign_items()]
+        current = datetime.now(timezone.utc)
+        items = [public_campaign(item, current) for item in read_campaign_items()]
         items.sort(key=lambda item: item['startTime'])
-        return response(200, {'items': items})
+        return response(200, {'serverTime': current.isoformat(), 'items': items})
     if method == 'GET' and path.startswith('/campaigns/'):
         campaign_id = path.split('/')[-1]
         item = campaigns.get_item(Key={'campaignId': campaign_id}).get('Item')
@@ -230,7 +279,7 @@ def route(event):
         return response(200, public_campaign(item))
     if method == 'GET' and path.startswith('/products/'):
         item = products.get_item(Key={'productId': path.split('/')[-1]}).get('Item')
-        return response(200, item) if item else error(404, 'PRODUCT_NOT_FOUND')
+        return response(200, public_product(item)) if item else error(404, 'PRODUCT_NOT_FOUND')
     if method == 'GET' and path.startswith('/orders/'):
         item = read_order(path.split('/')[-1])
         token_hash = digest(headers.get('x-order-token', ''))
@@ -259,9 +308,20 @@ def route(event):
     oid = 'ord_' + digest('flashrush-demo:v1:' + key)[:32]
     item = read_order(oid)
     if not item:
-        if not products.get_item(Key={'productId': pid}).get('Item'):
+        product = products.get_item(Key={'productId': pid}).get('Item')
+        if not product:
             return error(404, 'PRODUCT_NOT_FOUND')
-        campaign_error = active_campaign_limit(pid, qty)
+        if product.get('stock', 0) <= 0:
+            return error(409, 'SALE_SOLD_OUT')
+        current = datetime.now(timezone.utc)
+        campaign_error = active_campaign_limit(pid, qty, current)
+        if campaign_error in ('SALE_NOT_ACTIVE', 'SALE_ENDED') and not read_campaign_items():
+            start, end = product.get('saleStartsAt'), product.get('saleEndsAt')
+            if start and end:
+                state = sale_status(start, end, current, product.get('stock', 0) <= 0)
+                campaign_error = ('SALE_NOT_ACTIVE' if state == 'UPCOMING' else
+                                  'SALE_ENDED' if state == 'ENDED' else
+                                  'SALE_SOLD_OUT' if state == 'SOLD_OUT' else None)
         if campaign_error:
             return error(409, campaign_error)
         item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'status': 'PENDING',

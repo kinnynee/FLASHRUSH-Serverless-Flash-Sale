@@ -1,5 +1,7 @@
 import { products } from '../mocks/products';
 import type { Campaign, CampaignInput, CampaignStatus } from '../types/campaign';
+import { syncServerTime } from '../utils/serverClock';
+import { getServerNow } from '../utils/serverClock';
 
 export interface CampaignService {
   getCampaigns(): Promise<Campaign[]>;
@@ -38,7 +40,7 @@ function parseCampaign(value: unknown): Campaign {
     throw new Error('Dữ liệu chiến dịch không hợp lệ.');
   }
   const campaign = item as unknown as Campaign;
-  return { ...campaign, status: campaignStatus(campaign) };
+  return { ...campaign, status: campaignStatus(campaign, getServerNow()) };
 }
 function readStored(): Campaign[] {
   try {
@@ -78,6 +80,7 @@ export const campaignService: CampaignService = {
     if (!data || typeof data !== 'object' || !Array.isArray((data as { items?: unknown }).items)) {
       throw new Error('Danh sách chiến dịch không hợp lệ.');
     }
+    syncServerTime((data as { serverTime?: unknown }).serverTime);
     return ((data as { items: unknown[] }).items).map(parseCampaign);
   },
   async createCampaign(input) {

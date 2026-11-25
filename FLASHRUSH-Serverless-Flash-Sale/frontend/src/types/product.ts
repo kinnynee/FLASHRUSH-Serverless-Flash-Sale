@@ -9,7 +9,10 @@ export interface Product {
   initialStock: number;
   images: string[];
   isFlashSale: boolean;
+  saleStartsAt?: string;
   saleEndsAt: string;
+  serverTime?: string;
+  saleStatus?: 'UPCOMING' | 'LIVE' | 'ENDED' | 'SOLD_OUT';
   colors?: string[];
   specs?: { label: string; value: string; detail: string }[];
 }

@@ -109,9 +109,38 @@ class BackendTests(unittest.TestCase):
             ExpressionAttributeValues={':start': start.isoformat(), ':end': end.isoformat()})
         _, result, body = self.post()
         self.assertEqual(result['statusCode'], 409)
-        self.assertEqual(body['error']['code'], 'CAMPAIGN_NOT_ACTIVE')
+        self.assertEqual(body['error']['code'], 'SALE_ENDED')
         self.assertEqual(self.app.orders.scan()['Count'], 0)
         self.assertEqual(self.app.sqs.receive_message(QueueUrl=os.environ['QUEUE_URL']).get('Messages', []), [])
+
+    def test_orders_rejected_before_campaign_start_with_server_state(self):
+        start = datetime.now(timezone.utc) + timedelta(hours=1)
+        end = start + timedelta(hours=1)
+        self.app.campaigns.update_item(Key={'campaignId': 'active'},
+            UpdateExpression='SET startTime=:start, endTime=:end',
+            ExpressionAttributeValues={':start': start.isoformat(), ':end': end.isoformat()})
+        _, result, body = self.post()
+        self.assertEqual(result['statusCode'], 409)
+        self.assertEqual(body['error']['code'], 'SALE_NOT_ACTIVE')
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+
+    def test_catalog_payloads_include_server_authoritative_sale_window(self):
+        result, listing = self.request('GET', '/products')
+        self.assertEqual(result['statusCode'], 200)
+        self.assertIn('serverTime', listing)
+        product = listing['items'][0]
+        self.assertEqual(product['saleStatus'], 'LIVE')
+        self.assertEqual(product['saleStartsAt'], self.app.parse_time(
+            self.app.campaigns.get_item(Key={'campaignId': 'active'})['Item']['startTime']).isoformat())
+        result, detail = self.request('GET', '/products/sku')
+        self.assertEqual(result['statusCode'], 200)
+        self.assertIn('serverTime', detail)
+        self.assertIn(detail['saleStatus'], ('LIVE', 'SOLD_OUT'))
+        result, campaigns = self.request('GET', '/campaigns')
+        self.assertEqual(result['statusCode'], 200)
+        self.assertIn('serverTime', campaigns)
+        campaign = campaigns['items'][0]
+        self.assertIn(campaign['saleStatus'], ('LIVE', 'SOLD_OUT'))
 
     def test_orders_rejected_above_campaign_quantity_limit(self):
         _, result, body = self.post(payload={'productId': 'sku', 'quantity': 2})

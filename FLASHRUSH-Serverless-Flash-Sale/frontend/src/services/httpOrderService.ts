@@ -14,6 +14,8 @@ async function request(path: string, init: RequestInit) {
   try {
     const response = await fetch(`${base.replace(/\/$/, '')}${path}`, { ...init, signal: controller.signal });
     if (!response.ok) {
+      const body = await response.json().catch(() => undefined) as { error?: { code?: string } } | undefined;
+      if (body?.error?.code?.startsWith('SALE_')) throw new OrderApiError(response.status, body.error.code);
       const messages: Record<number, string> = { 400: 'Yêu cầu không hợp lệ.', 403: 'Không có quyền tra cứu đơn.', 404: 'Không tìm thấy đơn hoặc sản phẩm.', 409: 'Khóa yêu cầu đã được dùng với lựa chọn khác.', 429: 'Quá nhiều yêu cầu. Vui lòng chờ rồi thử lại.' };
       throw new OrderApiError(response.status, messages[response.status] || 'Chưa thể xác định kết quả. Hãy thử lại cùng yêu cầu.');
     }
