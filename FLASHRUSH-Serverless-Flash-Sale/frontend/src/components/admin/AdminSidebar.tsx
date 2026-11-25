@@ -1,20 +1,19 @@
-import { CalendarClock, Package, ReceiptText, Store } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
-
-const links = [
-  { to: '/admin/products', label: 'Sản phẩm', icon: Package },
-  { to: '/admin/campaigns', label: 'Chiến dịch', icon: CalendarClock },
-  { to: '/admin/orders', label: 'Đơn hàng', icon: ReceiptText },
-];
+import { Activity, LayoutDashboard, Store } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 
 export function AdminSidebar() {
+  const { pathname } = useLocation();
+  const overviewActive = !pathname.startsWith('/admin/monitoring');
   return (
     <aside className="dash-sidebar">
-      <span className="dash-sidebar-label">Quản lý Flash Sale</span>
-      <nav className="dash-nav" aria-label="Điều hướng quản trị">
-        {links.map(({ to, label, icon: Icon }) => (
-          <NavLink to={to} key={to}><Icon size={18} aria-hidden="true" /><span>{label}</span></NavLink>
-        ))}
+      <span className="dash-sidebar-label">Quản trị</span>
+      <nav className="dash-nav" aria-label="Điều hướng quản trị chính">
+        <NavLink to="/admin" end className={overviewActive ? 'active' : undefined} aria-current={overviewActive ? 'page' : undefined}>
+          <LayoutDashboard size={18} aria-hidden="true" /><span>Tổng quan Admin</span>
+        </NavLink>
+        <NavLink to="/admin/monitoring">
+          <Activity size={18} aria-hidden="true" /><span>Giám sát hệ thống</span>
+        </NavLink>
       </nav>
       <div className="dash-sidebar-footer">
         <Link className="button button-secondary dash-home" to="/"><Store size={16} /> Về cửa hàng</Link>

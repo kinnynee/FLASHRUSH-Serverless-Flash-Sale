@@ -283,6 +283,9 @@ def admin_orders_page(query):
         return None
     try:
         limit = min(100, max(1, int(query.get('limit', '25'))))
+        requested_page = int(query.get('page', '1'))
+        if requested_page < 1:
+            return None
     except (ValueError, TypeError):
         return None
     product_map = {item['productId']: item for item in scan_all(products)}
@@ -298,13 +301,19 @@ def admin_orders_page(query):
                      (decoded['createdAt'], decoded['orderId'])]
         except (ValueError, KeyError, TypeError, json.JSONDecodeError):
             return None
-    page = found[:limit]
+    total_count = len(found)
+    total_pages = (total_count + limit - 1) // limit
+    current_page = min(requested_page, total_pages) if total_pages else 1
+    start_index = (current_page - 1) * limit
+    page_items = found[:limit] if cursor else found[start_index:start_index + limit]
     next_cursor = None
-    if len(found) > limit:
-        last = page[-1]
+    has_more = len(found) > limit if cursor else start_index + limit < total_count
+    if has_more and page_items:
+        last = page_items[-1]
         next_cursor = base64.urlsafe_b64encode(json.dumps(
             {'createdAt': last.get('createdAt', ''), 'orderId': last['orderId']}).encode()).decode().rstrip('=')
-    return {'items': [admin_order_record(item, product_map) for item in page], 'nextCursor': next_cursor}
+    return {'items': [admin_order_record(item, product_map) for item in page_items], 'nextCursor': next_cursor,
+            'page': current_page, 'totalPages': total_pages, 'totalCount': total_count}
 
 
 def validate_admin_product(payload, existing=None):
@@ -453,6 +462,19 @@ def route(event):
         item = {'campaignId': campaign_id, **record}
         campaigns.put_item(Item=item, ConditionExpression='attribute_not_exists(campaignId)')
         return response(201, public_campaign(item))
+    if method == 'DELETE' and path.startswith('/admin/campaigns/'):
+        campaign_id = path.split('/')[-1]
+        if not campaign_id:
+            return error(400, 'INVALID_CAMPAIGN_ID')
+        try:
+            campaigns.delete_item(Key={'campaignId': campaign_id},
+                                   ConditionExpression='attribute_exists(campaignId)')
+        except ClientError as exc:
+            if exc.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                return error(404, 'CAMPAIGN_NOT_FOUND')
+            raise
+        return response(200, {'campaignId': campaign_id, 'deleted': True,
+                              'serverTime': datetime.now(timezone.utc).isoformat()})
     if method == 'PATCH' and path.startswith('/admin/campaigns/'):
         campaign_id = path.split('/')[-1]
         existing = campaigns.get_item(Key={'campaignId': campaign_id}, ConsistentRead=True).get('Item')

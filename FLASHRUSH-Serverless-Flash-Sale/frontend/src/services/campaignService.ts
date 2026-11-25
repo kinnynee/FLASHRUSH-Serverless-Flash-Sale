@@ -8,6 +8,7 @@ export interface CampaignService {
   getCampaigns(): Promise<Campaign[]>;
   createCampaign(input: CampaignInput): Promise<Campaign>;
   updateCampaign(campaignId: string, input: Partial<CampaignInput>): Promise<Campaign>;
+  deleteCampaign(campaignId: string): Promise<void>;
 }
 
 const storageKey = 'flashrush.demo.campaigns.v1';
@@ -106,5 +107,14 @@ export const campaignService: CampaignService = {
     return parseCampaign(await request(`/admin/campaigns/${encodeURIComponent(campaignId)}`, {
       method: 'PATCH', body: JSON.stringify(input),
     }));
+  },
+  async deleteCampaign(campaignId) {
+    if (mockMode()) {
+      const all = readStored();
+      if (!all.some(campaign => campaign.campaignId === campaignId)) throw new Error('Không tìm thấy đợt Flash Sale.');
+      save(all.filter(campaign => campaign.campaignId !== campaignId));
+      return;
+    }
+    await request(`/admin/campaigns/${encodeURIComponent(campaignId)}`, { method: 'DELETE' });
   },
 };

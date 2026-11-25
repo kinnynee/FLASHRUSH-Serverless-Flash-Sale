@@ -6,7 +6,7 @@ export { httpDashboardService, DashboardNotConfiguredError };
 
 export interface DashboardService {
   getDashboardSnapshot(scenario?: DashboardScenario): Promise<DashboardSnapshot>;
-  getAdminOrders(status?: string, cursor?: string, limit?: number): Promise<AdminOrdersPage>;
+  getAdminOrders(status?: string, page?: number, limit?: number): Promise<AdminOrdersPage>;
   createProduct(product: Product): Promise<Product>;
   updateProduct(productId: string, changes: Partial<Product>, stockDelta?: number): Promise<Product>;
 }

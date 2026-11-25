@@ -152,7 +152,8 @@
                   "Action": [
                     "dynamodb:GetItem",
                     "dynamodb:Scan",
-                    "dynamodb:PutItem"
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem"
                   ],
                   "Resource": {
                     "Fn::GetAtt": [
@@ -433,6 +434,7 @@
             "GET",
             "POST",
             "PATCH",
+            "DELETE",
             "OPTIONS"
           ],
           "AllowHeaders": [
@@ -636,7 +638,7 @@
         "ApiId": {
           "Ref": "HttpApi"
         },
-        "RouteKey": "GET /admin/overview",
+        "RouteKey": "DELETE /admin/campaigns/{campaignId}",
         "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
@@ -657,7 +659,7 @@
         "ApiId": {
           "Ref": "HttpApi"
         },
-        "RouteKey": "GET /admin/orders",
+        "RouteKey": "GET /admin/overview",
         "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
@@ -678,7 +680,7 @@
         "ApiId": {
           "Ref": "HttpApi"
         },
-        "RouteKey": "POST /admin/products",
+        "RouteKey": "GET /admin/orders",
         "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
@@ -699,7 +701,7 @@
         "ApiId": {
           "Ref": "HttpApi"
         },
-        "RouteKey": "PATCH /admin/products/{productId}",
+        "RouteKey": "POST /admin/products",
         "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
@@ -715,6 +717,27 @@
       }
     },
     "Route12": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/products/{productId}",
+        "AuthorizationType": "AWS_IAM",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route13": {
       "Type": "AWS::ApiGatewayV2::Route",
       "Properties": {
         "ApiId": {

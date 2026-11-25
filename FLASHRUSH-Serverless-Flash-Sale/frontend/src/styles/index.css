@@ -165,6 +165,13 @@ del { color: #94767c; font-size: 11px; }
 .campaign-products label { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; }
 .campaign-products input { margin-top: 3px; }
 .campaign-error { color: #a51f40; font-size: 12px; }
+.campaign-time-range { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 5px; color: var(--dash-neutral); font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.campaign-time-range time, .campaign-time-range span { font: inherit; }
+.campaign-time-range span { color: var(--color-muted); }
+.campaign-row-actions { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.campaign-delete-button { border: 0; padding: 4px 0; color: #b42345; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.campaign-delete-button:hover:not(:disabled) { color: #861b35; text-decoration: underline; }
+.campaign-delete-button:disabled { opacity: .6; cursor: wait; }
 .filter-top { display: flex; gap: 14px; justify-content: space-between; align-items: center; }
 .filter-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { padding: 8px 10px; font-size: 11px; }

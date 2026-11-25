@@ -27,6 +27,7 @@ export default function App() {
       '/products': 'Sản phẩm Flash Sale',
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
+      '/admin/campaigns': 'Đợt Flash Sale',
       '/admin/orders': 'Đơn hàng · Quản trị demo',
       '/admin/monitoring': 'Giám sát hệ thống',
     };
