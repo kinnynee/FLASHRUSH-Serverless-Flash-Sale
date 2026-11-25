@@ -5,13 +5,11 @@ import { useProducts } from '../hooks/useProducts';
 import { useStorefrontCampaigns } from '../hooks/useStorefrontCampaigns';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { ProductGrid } from '../components/product/ProductGrid';
-import { ProductImage } from '../components/common/ProductImage';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { EmptyState } from '../components/common/EmptyState';
 import { Button } from '../components/common/Button';
 import { SaleSchedule } from '../components/product/SaleSchedule';
 import { catalogCategories, saleDeadline } from '../utils/storefront';
-import { discountPercent, formatPrice } from '../utils/product';
 import type { CampaignStatus } from '../types/campaign';
 
 const statuses: { value: CampaignStatus | 'ALL'; label: string }[] = [
@@ -27,21 +25,17 @@ export function HomePage() {
   const selected = visibleCampaigns.find(c => c.campaignId === campaignId);
   const productIds = new Set((selected ? [selected] : visibleCampaigns).flatMap(c => c.productIds));
   const visibleProducts = products.filter(p => productIds.has(p.productId));
-  const featured = [...visibleProducts].sort((a, b) => discountPercent(b) - discountPercent(a))[0];
   const deadline = saleDeadline(selected ? [selected] : visibleCampaigns, now);
   const busy = loading || campaignsLoading;
   const failure = error || campaignsError;
   const listingLink = '/products?status=' + status + (selected ? '&campaignId=' + encodeURIComponent(selected.campaignId) : '');
   return <div className="container home-page">
-    <section className="hero">
-      <div className="hero-copy"><span className="eyebrow"><Zap size={14} fill="currentColor" /> FLASHRUSH / FLASH SALE</span>
-        <h1>Chớp thời điểm.<br />Săn giá tốt.</h1><p>Khám phá công nghệ, chọn ưu đãi dành cho bạn.</p>
-        <Link className="button button-primary hero-cta" to="/products?status=ALL">Khám phá sản phẩm <ArrowRight size={17} /></Link>
-      </div>
-      {!busy && !failure && featured ? <Link className="hero-feature" to={'/products/' + featured.productId}>
-        <div><span className="section-kicker">NỔI BẬT TRONG ĐỢT</span><h2>{featured.name}</h2><strong>{formatPrice(featured.price)}</strong><span>Giảm {discountPercent(featured)}% <ArrowRight size={16} /></span></div>
-        <ProductImage src={featured.images[0]} alt={featured.name} fetchPriority="high" />
-      </Link> : <div className="hero-art" aria-hidden="true"><Zap /><span>FLASH<br />RUSH.</span></div>}
+    <section className="promo-banner" aria-label="Khuyến mãi công nghệ FLASHRUSH">
+      <h1 className="sr-only">FLASHRUSH — Khuyến mãi công nghệ</h1>
+      <Link className="promo-banner-link" to="/products?status=ALL" aria-label="Mua ngay — Xem sản phẩm Flash Sale">
+        <img src="/images/flashrush-promo-banner.png" width={1536} height={768} fetchPriority="high"
+          alt="FLASHRUSH: nhập mã HAUMON, giảm 36,36%, áp dụng cho đơn hàng từ 3,6 triệu đồng trở lên. Mua ngay." />
+      </Link>
     </section>
     <section className="sale-section" aria-labelledby="featured-title">
       <div className="section-heading sale-heading"><div><span className="section-kicker">ƯU ĐÃI THEO KHUNG GIỜ</span><h2 id="featured-title"><Zap fill="currentColor" /> FLASH SALE</h2></div>

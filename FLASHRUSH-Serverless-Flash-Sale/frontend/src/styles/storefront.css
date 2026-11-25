@@ -32,6 +32,9 @@
 .storefront .home-page { padding-top: 20px; padding-bottom: 48px; }
 .storefront .hero { min-height: 220px; padding: 24px 36px; border: 1px solid #f4d9df; border-radius: 10px; grid-template-columns: 1fr 1fr; gap: 30px; background: radial-gradient(ellipse at 70% 100%, #ffd8df, transparent 65%), repeating-linear-gradient(120deg, transparent 0 44px, #ed124804 45px 46px), #fff6f6; box-shadow: none; }
 .storefront .hero-copy { padding: 0; }
+.promo-banner-link { display: block; border-radius: 10px; overflow: hidden; }
+.promo-banner-link img { display: block; width: 100%; height: auto; }
+.promo-banner-link:focus-visible { outline: 3px solid var(--color-brand); outline-offset: 4px; }
 .storefront .eyebrow { padding: 0; border-radius: 0; background: none; letter-spacing: 1.5px; font-size: 10px; gap: 4px; }
 .storefront .hero h1 { font-size: clamp(28px, 3vw, 42px); line-height: 1.03; letter-spacing: -1.7px; margin: 10px 0; }
 .storefront .hero-copy > p { font-size: 13px; font-weight: 400; color: #6f4552; margin-bottom: 0; }
