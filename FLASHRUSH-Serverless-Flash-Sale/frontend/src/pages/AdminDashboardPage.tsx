@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminTopbar } from '../components/admin/AdminTopbar';
-import { ProductInventoryTable, RecentOrdersTable } from '../components/admin/AdminTables';
+import { AdminOrdersTable, ProductInventoryTable, RecentOrdersTable } from '../components/admin/AdminTables';
 import { EmptyState } from '../components/common/EmptyState';
 import { DashboardContent, formatSnapshotTime, MonitoringStatusBadge, OrderMetricsOverview } from '../components/dashboard/DashboardCommon';
 import { useDashboard } from '../components/dashboard/DashboardLayout';
@@ -10,6 +10,7 @@ import { OrderStatusBadge } from '../components/order/OrderStatusBadge';
 import { OrderSummary } from '../components/order/OrderSummary';
 import type { OrderRecord } from '../types/order';
 import { AdminCampaignManagement } from './AdminCampaignManagement';
+import { Button } from '../components/common/Button';
 
 const pages = {
   overview: ['Tổng quan Flash Sale', 'Theo dõi sản phẩm, tồn kho và kết quả đặt hàng.'],
@@ -37,7 +38,7 @@ function OrderDetail({ order }: { order?: OrderRecord }) {
 
 export function AdminDashboardPage({ section = 'overview' }: { section?: keyof typeof pages }) {
   const { orderId } = useParams();
-  const { result } = useDashboard();
+  const { result, refresh } = useDashboard();
   const snapshot = result.status === 'success' ? result.snapshot : undefined;
   const [title, description] = pages[section];
 
@@ -52,6 +53,7 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
           <div className="dash-header-badges">
             {snapshot && <span className="dash-tag">Phiên #{snapshot.sessionId}</span>}
             <MonitoringStatusBadge snapshot={snapshot} />
+            <Button variant="secondary" onClick={refresh} disabled={result.status === 'loading'}>Làm mới dữ liệu</Button>
           </div>
         </header>
         <div className="dash-admin-body dash-stack">
@@ -63,9 +65,11 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
             <AdminCampaignManagement />
           ) : (
             <DashboardContent>{data => <>
-              {section === 'overview' && <OrderMetricsOverview orders={data.orders} />}
-              {(section === 'overview' || section === 'products') && <ProductInventoryTable products={data.products} />}
-              {(section === 'overview' || section === 'orders') && <RecentOrdersTable orders={data.orderRecords} recent={section === 'overview'} />}
+              {section === 'overview' && <OrderMetricsOverview orders={data.orders} revenue={data.totalRevenue} successRate={data.successRate} />}
+              {section === 'products' && <ProductInventoryTable products={data.products} onRefresh={refresh} />}
+              {section === 'overview' && <ProductInventoryTable products={data.products} onRefresh={refresh} />}
+              {section === 'overview' && <RecentOrdersTable orders={data.orderRecords} recent />}
+              {section === 'orders' && <AdminOrdersTable />}
               {section === 'detail' && <OrderDetail order={data.orderRecords.find(order => order.orderId === orderId)} />}
             </>}</DashboardContent>
           )}

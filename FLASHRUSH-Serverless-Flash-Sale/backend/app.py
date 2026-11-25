@@ -29,6 +29,8 @@ log = logging.getLogger()
 log.setLevel(logging.INFO)
 MAX_QUANTITY = 100
 TERMINAL = {'CONFIRMED', 'OUT_OF_STOCK', 'FAILED'}
+ADMIN_API_KEY = os.environ.get('ADMIN_API_KEY', '')
+LOW_STOCK_THRESHOLD = 5
 
 
 def now():
@@ -233,11 +235,177 @@ def api(event, context):
         result['body'] = json.dumps(body)
     return result
 
+def scan_all(table, **scan_kwargs):
+    items, kwargs = [], dict(scan_kwargs)
+    while True:
+        page = table.scan(**kwargs)
+        items.extend(page.get('Items', []))
+        if 'LastEvaluatedKey' not in page:
+            return items
+        kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+
+def admin_order_record(item, product_map):
+    product = product_map.get(item.get('productId'), {})
+    unit_price = item.get('unitPrice', product.get('price', 0))
+    return {**public_order(item), 'unitPrice': unit_price,
+            'item': {'productId': item['productId'], 'name': product.get('name', item['productId']),
+                     'image': (product.get('images') or [''])[0], 'quantity': item['quantity'],
+                     'unitPrice': unit_price}}
+
+
+def admin_overview_payload(current=None):
+    product_items = scan_all(products)
+    order_items = scan_all(orders)
+    product_map = {item['productId']: item for item in product_items}
+    counts = {status: 0 for status in ('PENDING', 'PROCESSING', 'CONFIRMED', 'OUT_OF_STOCK', 'FAILED')}
+    revenue = 0
+    for order in order_items:
+        status = order.get('status')
+        if status in counts:
+            counts[status] += 1
+        if status == 'CONFIRMED':
+            price = order.get('unitPrice', product_map.get(order.get('productId'), {}).get('price', 0))
+            revenue += price * order.get('quantity', 0)
+    total = len(order_items)
+    ordered = sorted(order_items, key=lambda item: (item.get('createdAt', ''), item['orderId']), reverse=True)
+    return {'serverTime': (current or datetime.now(timezone.utc)).isoformat(), 'totalRevenue': revenue,
+            'totalOrders': total, 'ordersByStatus': counts,
+            'successRate': round(counts['CONFIRMED'] * 100 / total, 2) if total else 0,
+            'lowStockProducts': [item for item in product_items if 0 < item.get('stock', 0) <= LOW_STOCK_THRESHOLD],
+            'products': product_items,
+            'recentOrders': [admin_order_record(item, product_map) for item in ordered[:10]]}
+
+
+def admin_orders_page(query):
+    status = query.get('status', '')
+    if status and status not in {'PENDING', 'PROCESSING', 'CONFIRMED', 'OUT_OF_STOCK', 'FAILED'}:
+        return None
+    try:
+        limit = min(100, max(1, int(query.get('limit', '25'))))
+    except (ValueError, TypeError):
+        return None
+    product_map = {item['productId']: item for item in scan_all(products)}
+    found = scan_all(orders)
+    if status:
+        found = [item for item in found if item.get('status') == status]
+    found.sort(key=lambda item: (item.get('createdAt', ''), item['orderId']), reverse=True)
+    cursor = query.get('cursor')
+    if cursor:
+        try:
+            decoded = json.loads(base64.urlsafe_b64decode(cursor + '=' * (-len(cursor) % 4)))
+            found = [item for item in found if (item.get('createdAt', ''), item['orderId']) <
+                     (decoded['createdAt'], decoded['orderId'])]
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+            return None
+    page = found[:limit]
+    next_cursor = None
+    if len(found) > limit:
+        last = page[-1]
+        next_cursor = base64.urlsafe_b64encode(json.dumps(
+            {'createdAt': last.get('createdAt', ''), 'orderId': last['orderId']}).encode()).decode().rstrip('=')
+    return {'items': [admin_order_record(item, product_map) for item in page], 'nextCursor': next_cursor}
+
+
+def validate_admin_product(payload, existing=None):
+    if not isinstance(payload, dict):
+        raise ValueError('Invalid product')
+    allowed = {'productId', 'name', 'description', 'category', 'price', 'originalPrice', 'stock',
+               'initialStock', 'images', 'isFlashSale', 'saleStartsAt', 'saleEndsAt', 'colors', 'specs'}
+    if set(payload) - allowed:
+        raise ValueError('Invalid product fields')
+    result = {**(existing or {}), **payload}
+    for field in ('productId', 'name', 'description', 'category'):
+        if not isinstance(result.get(field), str) or not result[field].strip() or len(result[field]) > 2000:
+            raise ValueError('Invalid product')
+    for field in ('price', 'originalPrice'):
+        if type(result.get(field)) not in (int, float, Decimal) or result[field] < 0:
+            raise ValueError('Invalid product')
+    if (type(result.get('stock')) not in (int, Decimal) or result['stock'] < 0 or result['stock'] % 1 != 0 or
+            type(result.get('initialStock')) not in (int, Decimal) or result['initialStock'] < 0 or result['initialStock'] % 1 != 0 or
+            type(result.get('isFlashSale')) is not bool or
+            not isinstance(result.get('images'), list) or not result['images'] or
+            any(not isinstance(image, str) or not image for image in result['images'])):
+        raise ValueError('Invalid product')
+    if result.get('saleStartsAt') is not None:
+        parse_time(result['saleStartsAt'])
+    parse_time(result['saleEndsAt'])
+    return result
 
 def route(event):
     method = event['requestContext']['http']['method']
     path = event.get('rawPath', '/')
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
+    if path.startswith('/admin/'):
+        if not ADMIN_API_KEY:
+            return error(503, 'ADMIN_AUTH_NOT_CONFIGURED')
+        supplied = headers.get('x-admin-key', '')
+        if not hmac.compare_digest(supplied, ADMIN_API_KEY):
+            return error(401, 'ADMIN_UNAUTHORIZED')
+    if method == 'GET' and path == '/admin/overview':
+        return response(200, admin_overview_payload())
+    if method == 'GET' and path == '/admin/orders':
+        query = event.get('queryStringParameters') or {}
+        result = admin_orders_page(query)
+        return response(200, result) if result is not None else error(400, 'INVALID_ADMIN_ORDER_QUERY')
+    if method == 'POST' and path == '/admin/products':
+        raw = event.get('body') or '{}'
+        if event.get('isBase64Encoded'):
+            raw = base64.b64decode(raw).decode()
+        payload = json.loads(raw)
+        product_id = payload.get('productId') if isinstance(payload, dict) else None
+        if not isinstance(product_id, str) or not product_id.strip() or len(product_id) > 128:
+            return error(400, 'INVALID_PRODUCT')
+        item = validate_admin_product(payload)
+        item['productId'] = product_id.strip()
+        try:
+            products.put_item(Item=item, ConditionExpression='attribute_not_exists(productId)')
+        except ClientError as exc:
+            if exc.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                return error(409, 'PRODUCT_ALREADY_EXISTS')
+            raise
+        return response(201, public_product(item))
+    if method == 'PATCH' and path.startswith('/admin/products/'):
+        product_id = path.split('/')[-1]
+        existing = products.get_item(Key={'productId': product_id}, ConsistentRead=True).get('Item')
+        if not existing:
+            return error(404, 'PRODUCT_NOT_FOUND')
+        raw = event.get('body') or '{}'
+        if event.get('isBase64Encoded'):
+            raw = base64.b64decode(raw).decode()
+        changes = json.loads(raw)
+        if not isinstance(changes, dict) or not changes or 'stock' in changes or 'productId' in changes:
+            return error(400, 'INVALID_PRODUCT')
+        stock_delta = changes.pop('stockDelta', None)
+        if stock_delta is not None and (type(stock_delta) is not int or stock_delta == 0):
+            return error(400, 'INVALID_STOCK_DELTA')
+        candidate = validate_admin_product({**changes, 'stock': existing['stock']}, existing)
+        mutable = {key: value for key, value in candidate.items()
+                   if key in changes and key not in ('productId', 'stock')}
+        update_parts, names, expression_values = [], {}, {}
+        for index, (key, value) in enumerate(mutable.items()):
+            name, token = f'#f{index}', f':v{index}'
+            names[name] = key
+            expression_values[token] = value
+            update_parts.append(f'{name}={token}')
+        expression = ('SET ' + ', '.join(update_parts) if update_parts else '')
+        if stock_delta is not None:
+            expression += (' ' if expression else '') + 'ADD #stock :delta'
+            names['#stock'] = 'stock'
+            expression_values[':delta'] = stock_delta
+        condition = 'attribute_exists(productId)'
+        if stock_delta is not None and stock_delta < 0:
+            condition += ' AND stock >= :minimum'
+            expression_values[':minimum'] = abs(stock_delta)
+        try:
+            result = products.update_item(Key={'productId': product_id}, UpdateExpression=expression,
+                ConditionExpression=condition, ExpressionAttributeNames=names,
+                ExpressionAttributeValues=expression_values, ReturnValues='ALL_NEW')
+        except ClientError as exc:
+            if exc.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                return error(409, 'INSUFFICIENT_STOCK')
+            raise
+        return response(200, public_product(result['Attributes']))
     if method == 'GET' and path == '/products':
         items, kwargs = [], {}
         while True:
@@ -246,6 +414,8 @@ def route(event):
             if 'LastEvaluatedKey' not in page:
                 break
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+
         current = datetime.now(timezone.utc)
         campaign_items = read_campaign_items()
         return response(200, {'serverTime': current.isoformat(),
@@ -328,7 +498,7 @@ def route(event):
         campaign_error = active_campaign_limit(pid, qty, current, product)
         if campaign_error:
             return error(409, campaign_error)
-        item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'status': 'PENDING',
+        item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'unitPrice': product['price'], 'status': 'PENDING',
                 'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': now(),
                 'updatedAt': now(), 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0, 'correlationId': str(uuid.uuid4())}
         try:

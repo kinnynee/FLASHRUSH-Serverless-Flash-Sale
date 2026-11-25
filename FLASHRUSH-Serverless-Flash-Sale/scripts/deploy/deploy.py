@@ -4,6 +4,7 @@ AWS references: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateRef
 """
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 import zipfile
@@ -32,9 +33,9 @@ def template(bucket, code_key):
         'MessageRetentionPeriod': 345600, 'ReceiveMessageWaitTimeSeconds': 20, 'SqsManagedSseEnabled': True,
         'RedrivePolicy': {'deadLetterTargetArn': arn('DLQ'), 'maxReceiveCount': 5}})
     for role, statements in [('ApiRole', [
-        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan'], 'Resource': arn('Products')},
+        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Products')},
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem'], 'Resource': arn('Campaigns')},
-        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Orders')},
+        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Orders')},
         {'Effect': 'Allow', 'Action': 'sqs:SendMessage', 'Resource': arn('Queue')}]),
         ('WorkerRole', [
         {'Effect': 'Allow', 'Action': ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes'], 'Resource': arn('Queue')},
@@ -50,6 +51,7 @@ def template(bucket, code_key):
         variables = {'PRODUCTS_TABLE': ref('Products'), 'ORDERS_TABLE': ref('Orders'), 'QUEUE_URL': ref('Queue')}
         if name == 'Api':
             variables['CAMPAIGNS_TABLE'] = ref('Campaigns')
+            variables['ADMIN_API_KEY'] = ref('AdminApiKey')
         resource(name, 'Lambda::Function', {'FunctionName': 'flashrush-lab-'+handler, 'Runtime': 'python3.12',
             'Handler': 'app.'+handler, 'Role': arn(role), 'Timeout': 15, 'MemorySize': 256,
             'Code': {'S3Bucket': bucket, 'S3Key': code_key}, 'Environment': {'Variables': variables},
@@ -59,13 +61,14 @@ def template(bucket, code_key):
         'ScalingConfig': {'MaximumConcurrency': 5}, 'Enabled': True})
     resource('HttpApi', 'ApiGatewayV2::Api', {'Name': 'flashrush-lab-api', 'ProtocolType': 'HTTP',
         'CorsConfiguration': {'AllowOrigins': [sub('https://${Distribution.DomainName}'), 'http://localhost:5173', 'http://127.0.0.1:5173'],
-            'AllowMethods': ['GET', 'POST', 'PATCH', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token'], 'MaxAge': 300}})
+            'AllowMethods': ['GET', 'POST', 'PATCH', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token', 'x-admin-key'], 'MaxAge': 300}})
     resource('Integration', 'ApiGatewayV2::Integration', {'ApiId': ref('HttpApi'), 'IntegrationType': 'AWS_PROXY',
         'IntegrationUri': arn('Api'), 'PayloadFormatVersion': '2.0', 'TimeoutInMillis': 20000})
     for i, route in enumerate([
         'GET /products', 'GET /products/{productId}', 'POST /orders', 'GET /orders/{orderId}',
         'GET /campaigns', 'GET /campaigns/{campaignId}', 'POST /admin/campaigns',
-        'PATCH /admin/campaigns/{campaignId}'
+        'PATCH /admin/campaigns/{campaignId}', 'GET /admin/overview', 'GET /admin/orders',
+        'POST /admin/products', 'PATCH /admin/products/{productId}'
     ]):
         resource('Route'+str(i), 'ApiGatewayV2::Route', {'ApiId': ref('HttpApi'), 'RouteKey': route,
             'Target': {'Fn::Join': ['/', ['integrations', ref('Integration')]]}})
@@ -116,11 +119,17 @@ def template(bucket, code_key):
         'WebsiteBucket': ref('Website'), 'DistributionId': ref('Distribution'), 'ProductsTable': ref('Products'),
         'OrdersTable': ref('Orders'), 'CampaignsTable': ref('Campaigns'), 'QueueUrl': ref('Queue'),
         'DLQUrl': ref('DLQ'), 'AlertsTopicArn': ref('Alerts')}.items()}
-    return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; nine application services', 'Resources': resources, 'Outputs': outputs}
+    parameters = {'AdminApiKey': {'Type': 'String', 'NoEcho': True, 'MinLength': 32,
+        'Description': 'Admin API bearer secret. Supply via FLASHRUSH_ADMIN_API_KEY; never commit it.'}}
+    return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; admin dashboard API',
+            'Parameters': parameters, 'Resources': resources, 'Outputs': outputs}
 
 
 def main():
     args = parser().parse_args()
+    admin_api_key = os.environ.get('FLASHRUSH_ADMIN_API_KEY', '')
+    if len(admin_api_key) < 32:
+        raise SystemExit('Set FLASHRUSH_ADMIN_API_KEY to a random secret of at least 32 characters.')
     session = connect(args)
     account = args.account
     cf = session.client('cloudformation')
@@ -167,6 +176,7 @@ def main():
             raise
         kind = 'CREATE'
     cf.create_change_set(StackName=stack, ChangeSetName=change, ChangeSetType=kind, TemplateBody=json.dumps(document),
+        Parameters=[{'ParameterKey': 'AdminApiKey', 'ParameterValue': admin_api_key}],
         Capabilities=['CAPABILITY_IAM'], Tags=[{'Key': 'Project', 'Value': 'FLASHRUSH'}, {'Key': 'Environment', 'Value': 'lab'}, {'Key': 'Owner', 'Value': 'FLASHRUSH-team'}])
     try:
         cf.get_waiter('change_set_create_complete').wait(StackName=stack, ChangeSetName=change)

@@ -4,6 +4,7 @@ import os
 import unittest
 import uuid
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 import boto3
@@ -14,7 +15,7 @@ from moto import mock_aws
 class BackendTests(unittest.TestCase):
     def setUp(self):
         os.environ.update(AWS_DEFAULT_REGION='us-east-1', PRODUCTS_TABLE='products', ORDERS_TABLE='orders',
-                          CAMPAIGNS_TABLE='campaigns')
+                          CAMPAIGNS_TABLE='campaigns', ADMIN_API_KEY='test-admin-secret-32-characters')
         db = boto3.resource('dynamodb', region_name='us-east-1')
         for table, key in [('products', 'productId'), ('orders', 'orderId'), ('campaigns', 'campaignId')]:
             db.create_table(TableName=table, KeySchema=[{'AttributeName': key, 'KeyType': 'HASH'}],
@@ -23,7 +24,11 @@ class BackendTests(unittest.TestCase):
         os.environ['QUEUE_URL'] = sqs.create_queue(QueueName='orders')['QueueUrl']
         import app
         self.app = importlib.reload(app)
-        self.app.products.put_item(Item={'productId': 'sku', 'stock': 10})
+        self.app.products.put_item(Item={'productId': 'sku', 'stock': 10, 'initialStock': 10,
+            'name': 'SKU', 'category': 'Test', 'description': 'Test product', 'price': 100,
+            'originalPrice': 150, 'images': ['/sku.jpg'], 'isFlashSale': True,
+            'saleStartsAt': (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+            'saleEndsAt': (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()})
         start = datetime.now(timezone.utc) - timedelta(hours=1)
         end = datetime.now(timezone.utc) + timedelta(hours=1)
         self.app.campaigns.put_item(Item={'campaignId': 'active', 'name': 'Active Sale',
@@ -36,9 +41,12 @@ class BackendTests(unittest.TestCase):
             'headers': {'Idempotency-Key': key}, 'body': json.dumps(payload or {'productId': 'sku', 'quantity': 1})}, None)
         return key, result, json.loads(result['body'])
 
-    def request(self, method, path, payload=None):
-        result = self.app.api({'requestContext': {'http': {'method': method}}, 'rawPath': path,
-            'headers': {}, 'body': json.dumps(payload) if payload is not None else None}, None)
+    def request(self, method, path, payload=None, headers=None):
+        parsed = urlsplit(path)
+        query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
+        result = self.app.api({'requestContext': {'http': {'method': method}}, 'rawPath': parsed.path,
+            'queryStringParameters': query, 'headers': headers or {},
+            'body': json.dumps(payload) if payload is not None else None}, None)
         return result, json.loads(result['body'])
 
     def drain(self):
@@ -171,17 +179,79 @@ class BackendTests(unittest.TestCase):
         start = datetime.now(timezone.utc) + timedelta(days=1)
         payload = {'name': 'Tomorrow', 'startTime': start.isoformat(),
             'endTime': (start + timedelta(hours=2)).isoformat(), 'productIds': ['sku'], 'maxQtyPerOrder': 3}
-        result, created = self.request('POST', '/admin/campaigns', payload)
+        auth = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        result, created = self.request('POST', '/admin/campaigns', payload, auth)
         self.assertEqual(result['statusCode'], 201)
         campaign_id = created['campaignId']
         self.assertEqual(created['status'], 'UPCOMING')
-        result, updated = self.request('PATCH', '/admin/campaigns/' + campaign_id, {'maxQtyPerOrder': 4})
+        result, updated = self.request('PATCH', '/admin/campaigns/' + campaign_id, {'maxQtyPerOrder': 4}, auth)
         self.assertEqual(result['statusCode'], 200)
         self.assertEqual(updated['maxQtyPerOrder'], 4)
         result, listed = self.request('GET', '/campaigns')
         self.assertEqual(result['statusCode'], 200)
         self.assertIn(campaign_id, [item['campaignId'] for item in listed['items']])
         self.assertEqual(self.request('GET', '/campaigns/' + campaign_id)[0]['statusCode'], 200)
+
+    def test_admin_endpoints_require_admin_key(self):
+        for method, path, payload in [
+            ('GET', '/admin/overview', None), ('GET', '/admin/orders', None),
+            ('POST', '/admin/products', {}), ('POST', '/admin/campaigns', {})]:
+            result, body = self.request(method, path, payload)
+            self.assertEqual(result['statusCode'], 401)
+            self.assertEqual(body['error']['code'], 'ADMIN_UNAUTHORIZED')
+        result, body = self.request('GET', '/admin/overview', headers={'X-Admin-Key': 'wrong'})
+        self.assertEqual(result['statusCode'], 401)
+        self.assertEqual(body['error']['code'], 'ADMIN_UNAUTHORIZED')
+
+    def test_admin_overview_reports_real_revenue_counts_and_low_stock(self):
+        self.app.products.put_item(Item={'productId': 'low', 'stock': 3, 'name': 'Low stock'})
+        self.app.orders.put_item(Item={'orderId': 'confirmed', 'productId': 'sku', 'quantity': 2,
+            'unitPrice': 100, 'status': 'CONFIRMED', 'createdAt': '2026-01-02T00:00:00+00:00', 'updatedAt': '2026-01-02T00:00:00+00:00'})
+        self.app.orders.put_item(Item={'orderId': 'pending', 'productId': 'sku', 'quantity': 1,
+            'unitPrice': 100, 'status': 'PENDING', 'createdAt': '2026-01-03T00:00:00+00:00', 'updatedAt': '2026-01-03T00:00:00+00:00'})
+        result, body = self.request('GET', '/admin/overview', headers={'X-Admin-Key': 'test-admin-secret-32-characters'})
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(body['totalRevenue'], 200)
+        self.assertEqual(body['ordersByStatus']['CONFIRMED'], 1)
+        self.assertEqual(body['ordersByStatus']['PENDING'], 1)
+        self.assertEqual(body['successRate'], 50)
+        self.assertEqual([item['productId'] for item in body['lowStockProducts']], ['low'])
+
+    def test_admin_orders_filter_and_cursor_pagination(self):
+        for index in range(3):
+            self.app.orders.put_item(Item={'orderId': f'order-{index}', 'productId': 'sku', 'quantity': 1,
+                'status': 'PENDING' if index < 2 else 'FAILED', 'createdAt': f'2026-01-0{index+1}T00:00:00+00:00', 'updatedAt': '2026-01-01T00:00:00+00:00'})
+        headers = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        result, first = self.request('GET', '/admin/orders', headers=headers)
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(len(first['items']), 3)
+        self.assertEqual(first['items'][0]['orderId'], 'order-2')
+        result, page = self.request('GET', '/admin/orders?status=PENDING&limit=1', headers=headers)
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(len(page['items']), 1)
+        self.assertEqual(page['items'][0]['status'], 'PENDING')
+        self.assertIsNotNone(page['nextCursor'])
+        result, second = self.request('GET', '/admin/orders?status=PENDING&limit=1&cursor=' + page['nextCursor'], headers=headers)
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(len(second['items']), 1)
+        self.assertNotEqual(page['items'][0]['orderId'], second['items'][0]['orderId'])
+
+    def test_admin_product_stock_delta_is_atomic_and_cannot_go_negative(self):
+        headers = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        product = {'productId': 'new-sku', 'name': 'New', 'description': 'Desc', 'category': 'Test',
+            'price': 90, 'originalPrice': 100, 'stock': 5, 'initialStock': 5, 'images': ['/new.jpg'],
+            'isFlashSale': True, 'saleStartsAt': (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat(),
+            'saleEndsAt': (datetime.now(timezone.utc)+timedelta(hours=1)).isoformat()}
+        result, created = self.request('POST', '/admin/products', product, headers)
+        self.assertEqual(result['statusCode'], 201)
+        self.assertEqual(created['stock'], 5)
+        result, updated = self.request('PATCH', '/admin/products/new-sku', {'stockDelta': -3, 'price': 80}, headers)
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(updated['stock'], 2)
+        self.assertEqual(updated['price'], 80)
+        result, body = self.request('PATCH', '/admin/products/new-sku', {'stockDelta': -3}, headers)
+        self.assertEqual(result['statusCode'], 409)
+        self.assertEqual(body['error']['code'], 'INSUFFICIENT_STOCK')
 
     def test_active_lease_and_attempt_limit_prevent_resend(self):
         with patch.object(self.app.sqs, 'send_message', side_effect=TimeoutError):

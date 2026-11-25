@@ -1,6 +1,14 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "FLASHRUSH isolated lab; nine application services",
+  "Description": "FLASHRUSH isolated lab; admin dashboard API",
+  "Parameters": {
+    "AdminApiKey": {
+      "Type": "String",
+      "NoEcho": true,
+      "MinLength": 32,
+      "Description": "Admin API bearer secret. Supply via FLASHRUSH_ADMIN_API_KEY; never commit it."
+    }
+  },
   "Resources": {
     "Products": {
       "Type": "AWS::DynamoDB::Table",
@@ -128,7 +136,9 @@
                   "Effect": "Allow",
                   "Action": [
                     "dynamodb:GetItem",
-                    "dynamodb:Scan"
+                    "dynamodb:Scan",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
                   ],
                   "Resource": {
                     "Fn::GetAtt": [
@@ -155,6 +165,7 @@
                   "Effect": "Allow",
                   "Action": [
                     "dynamodb:GetItem",
+                    "dynamodb:Scan",
                     "dynamodb:PutItem",
                     "dynamodb:UpdateItem"
                   ],
@@ -297,11 +308,14 @@
             "ORDERS_TABLE": {
               "Ref": "Orders"
             },
+            "QUEUE_URL": {
+              "Ref": "Queue"
+            },
             "CAMPAIGNS_TABLE": {
               "Ref": "Campaigns"
             },
-            "QUEUE_URL": {
-              "Ref": "Queue"
+            "ADMIN_API_KEY": {
+              "Ref": "AdminApiKey"
             }
           }
         },
@@ -400,7 +414,8 @@
           "AllowHeaders": [
             "content-type",
             "idempotency-key",
-            "x-order-token"
+            "x-order-token",
+            "x-admin-key"
           ],
           "MaxAge": 300
         }
@@ -570,6 +585,86 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/campaigns/{campaignId}",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route8": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/overview",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route9": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/orders",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route10": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /admin/products",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route11": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/products/{productId}",
         "Target": {
           "Fn::Join": [
             "/",

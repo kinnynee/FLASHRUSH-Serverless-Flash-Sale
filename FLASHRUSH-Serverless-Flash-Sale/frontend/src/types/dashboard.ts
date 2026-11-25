@@ -43,9 +43,14 @@ export interface DashboardSnapshot {
   sessionId: string;
   updatedAt: string;
   orders: OrderMetrics;
+  totalRevenue: number;
+  successRate: number;
+  lowStockProducts: DashboardProduct[];
   orderRecords: OrderRecord[];
   products: DashboardProduct[];
   sqs: SqsMetrics;
   lambda: LambdaMetrics;
   alerts: DashboardAlert[];
 }
+
+export interface AdminOrdersPage { items: OrderRecord[]; nextCursor: string | null; }
