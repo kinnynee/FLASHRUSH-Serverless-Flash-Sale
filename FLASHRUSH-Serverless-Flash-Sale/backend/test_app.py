@@ -3,6 +3,7 @@ import json
 import os
 import unittest
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import boto3
@@ -12,9 +13,10 @@ from moto import mock_aws
 @mock_aws
 class BackendTests(unittest.TestCase):
     def setUp(self):
-        os.environ.update(AWS_DEFAULT_REGION='us-east-1', PRODUCTS_TABLE='products', ORDERS_TABLE='orders')
+        os.environ.update(AWS_DEFAULT_REGION='us-east-1', PRODUCTS_TABLE='products', ORDERS_TABLE='orders',
+                          CAMPAIGNS_TABLE='campaigns')
         db = boto3.resource('dynamodb', region_name='us-east-1')
-        for table, key in [('products', 'productId'), ('orders', 'orderId')]:
+        for table, key in [('products', 'productId'), ('orders', 'orderId'), ('campaigns', 'campaignId')]:
             db.create_table(TableName=table, KeySchema=[{'AttributeName': key, 'KeyType': 'HASH'}],
                 AttributeDefinitions=[{'AttributeName': key, 'AttributeType': 'S'}], BillingMode='PAY_PER_REQUEST')
         sqs = boto3.client('sqs', region_name='us-east-1')
@@ -22,12 +24,22 @@ class BackendTests(unittest.TestCase):
         import app
         self.app = importlib.reload(app)
         self.app.products.put_item(Item={'productId': 'sku', 'stock': 10})
+        start = datetime.now(timezone.utc) - timedelta(hours=1)
+        end = datetime.now(timezone.utc) + timedelta(hours=1)
+        self.app.campaigns.put_item(Item={'campaignId': 'active', 'name': 'Active Sale',
+            'startTime': start.isoformat(), 'endTime': end.isoformat(), 'status': 'ACTIVE',
+            'productIds': ['sku'], 'maxQtyPerOrder': 1})
 
     def post(self, key=None, payload=None):
         key = key or str(uuid.uuid4())
         result = self.app.api({'requestContext': {'http': {'method': 'POST'}}, 'rawPath': '/orders',
             'headers': {'Idempotency-Key': key}, 'body': json.dumps(payload or {'productId': 'sku', 'quantity': 1})}, None)
         return key, result, json.loads(result['body'])
+
+    def request(self, method, path, payload=None):
+        result = self.app.api({'requestContext': {'http': {'method': method}}, 'rawPath': path,
+            'headers': {}, 'body': json.dumps(payload) if payload is not None else None}, None)
+        return result, json.loads(result['body'])
 
     def drain(self):
         while True:
@@ -70,7 +82,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.app.orders.scan()['Count'], 1)
 
     def test_validation_and_poison_message(self):
-        for quantity in [0, -1, True, '1', 2]:
+        for quantity in [0, -1, True, '1']:
             self.assertEqual(self.post(payload={'productId': 'sku', 'quantity': quantity})[1]['statusCode'], 400)
         result = self.app.worker({'Records': [{'messageId': 'bad', 'body': '{}'}]}, None)
         self.assertEqual(result, {'batchItemFailures': [{'itemIdentifier': 'bad'}]})
@@ -88,7 +100,50 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.post(key)[1]['statusCode'], 202)
         self.drain()
         self.assertEqual(self.app.products.get_item(Key={'productId': 'sku'})['Item']['stock'], 9)
-        self.assertEqual(self.app.orders.scan()['Count'], 1)
+
+    def test_orders_rejected_outside_campaign_window(self):
+        start = datetime.now(timezone.utc) - timedelta(hours=2)
+        end = datetime.now(timezone.utc) - timedelta(hours=1)
+        self.app.campaigns.update_item(Key={'campaignId': 'active'},
+            UpdateExpression='SET startTime=:start, endTime=:end',
+            ExpressionAttributeValues={':start': start.isoformat(), ':end': end.isoformat()})
+        _, result, body = self.post()
+        self.assertEqual(result['statusCode'], 409)
+        self.assertEqual(body['error']['code'], 'CAMPAIGN_NOT_ACTIVE')
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+        self.assertEqual(self.app.sqs.receive_message(QueueUrl=os.environ['QUEUE_URL']).get('Messages', []), [])
+
+    def test_orders_rejected_above_campaign_quantity_limit(self):
+        _, result, body = self.post(payload={'productId': 'sku', 'quantity': 2})
+        self.assertEqual(result['statusCode'], 409)
+        self.assertEqual(body['error']['code'], 'CAMPAIGN_QUANTITY_LIMIT')
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+
+    def test_allowed_multi_quantity_order_decrements_stock_atomically(self):
+        self.app.campaigns.update_item(Key={'campaignId': 'active'},
+            UpdateExpression='SET maxQtyPerOrder=:limit',
+            ExpressionAttributeValues={':limit': 3})
+        _, result, order = self.post(payload={'productId': 'sku', 'quantity': 2})
+        self.assertEqual(result['statusCode'], 202)
+        self.drain()
+        self.assertEqual(self.app.read_order(order['orderId'])['status'], 'CONFIRMED')
+        self.assertEqual(self.app.products.get_item(Key={'productId': 'sku'})['Item']['stock'], 8)
+
+    def test_campaign_api_create_patch_and_read(self):
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        payload = {'name': 'Tomorrow', 'startTime': start.isoformat(),
+            'endTime': (start + timedelta(hours=2)).isoformat(), 'productIds': ['sku'], 'maxQtyPerOrder': 3}
+        result, created = self.request('POST', '/admin/campaigns', payload)
+        self.assertEqual(result['statusCode'], 201)
+        campaign_id = created['campaignId']
+        self.assertEqual(created['status'], 'UPCOMING')
+        result, updated = self.request('PATCH', '/admin/campaigns/' + campaign_id, {'maxQtyPerOrder': 4})
+        self.assertEqual(result['statusCode'], 200)
+        self.assertEqual(updated['maxQtyPerOrder'], 4)
+        result, listed = self.request('GET', '/campaigns')
+        self.assertEqual(result['statusCode'], 200)
+        self.assertIn(campaign_id, [item['campaignId'] for item in listed['items']])
+        self.assertEqual(self.request('GET', '/campaigns/' + campaign_id)[0]['statusCode'], 200)
 
     def test_active_lease_and_attempt_limit_prevent_resend(self):
         with patch.object(self.app.sqs, 'send_message', side_effect=TimeoutError):

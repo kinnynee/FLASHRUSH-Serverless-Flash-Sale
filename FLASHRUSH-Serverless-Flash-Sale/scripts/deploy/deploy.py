@@ -21,7 +21,7 @@ def template(bucket, code_key):
     resources = {}
     def resource(name, kind, properties, **extra):
         resources[name] = {'Type': 'AWS::' + kind, 'Properties': properties, **extra}
-    for name, pk in [('Products', 'productId'), ('Orders', 'orderId')]:
+    for name, pk in [('Products', 'productId'), ('Orders', 'orderId'), ('Campaigns', 'campaignId')]:
         resource(name, 'DynamoDB::Table', {'TableName': 'flashrush-lab-' + name.lower(), 'BillingMode': 'PAY_PER_REQUEST',
             'AttributeDefinitions': [{'AttributeName': pk, 'AttributeType': 'S'}],
             'KeySchema': [{'AttributeName': pk, 'KeyType': 'HASH'}], 'SSESpecification': {'SSEEnabled': True}})
@@ -33,6 +33,7 @@ def template(bucket, code_key):
         'RedrivePolicy': {'deadLetterTargetArn': arn('DLQ'), 'maxReceiveCount': 5}})
     for role, statements in [('ApiRole', [
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan'], 'Resource': arn('Products')},
+        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem'], 'Resource': arn('Campaigns')},
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Orders')},
         {'Effect': 'Allow', 'Action': 'sqs:SendMessage', 'Resource': arn('Queue')}]),
         ('WorkerRole', [
@@ -46,20 +47,26 @@ def template(bucket, code_key):
             'Policies': [{'PolicyName': 'flashrush-runtime', 'PolicyDocument': {'Version': '2012-10-17', 'Statement': statements}}]})
     for name, handler, role in [('Api', 'api', 'ApiRole'), ('Worker', 'worker', 'WorkerRole')]:
         resource(name+'Log', 'Logs::LogGroup', {'LogGroupName': '/aws/lambda/flashrush-lab-'+handler, 'RetentionInDays': 7})
+        variables = {'PRODUCTS_TABLE': ref('Products'), 'ORDERS_TABLE': ref('Orders'), 'QUEUE_URL': ref('Queue')}
+        if name == 'Api':
+            variables['CAMPAIGNS_TABLE'] = ref('Campaigns')
         resource(name, 'Lambda::Function', {'FunctionName': 'flashrush-lab-'+handler, 'Runtime': 'python3.12',
             'Handler': 'app.'+handler, 'Role': arn(role), 'Timeout': 15, 'MemorySize': 256,
-            'Code': {'S3Bucket': bucket, 'S3Key': code_key}, 'Environment': {'Variables': {
-                'PRODUCTS_TABLE': ref('Products'), 'ORDERS_TABLE': ref('Orders'), 'QUEUE_URL': ref('Queue')}},
+            'Code': {'S3Bucket': bucket, 'S3Key': code_key}, 'Environment': {'Variables': variables},
             'Architectures': ['arm64']}, DependsOn=name+'Log')
     resource('Mapping', 'Lambda::EventSourceMapping', {'EventSourceArn': arn('Queue'), 'FunctionName': ref('Worker'),
         'BatchSize': 1, 'MaximumBatchingWindowInSeconds': 0, 'FunctionResponseTypes': ['ReportBatchItemFailures'],
         'ScalingConfig': {'MaximumConcurrency': 5}, 'Enabled': True})
     resource('HttpApi', 'ApiGatewayV2::Api', {'Name': 'flashrush-lab-api', 'ProtocolType': 'HTTP',
         'CorsConfiguration': {'AllowOrigins': [sub('https://${Distribution.DomainName}'), 'http://localhost:5173', 'http://127.0.0.1:5173'],
-            'AllowMethods': ['GET', 'POST', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token'], 'MaxAge': 300}})
+            'AllowMethods': ['GET', 'POST', 'PATCH', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token'], 'MaxAge': 300}})
     resource('Integration', 'ApiGatewayV2::Integration', {'ApiId': ref('HttpApi'), 'IntegrationType': 'AWS_PROXY',
         'IntegrationUri': arn('Api'), 'PayloadFormatVersion': '2.0', 'TimeoutInMillis': 20000})
-    for i, route in enumerate(['GET /products', 'GET /products/{productId}', 'POST /orders', 'GET /orders/{orderId}']):
+    for i, route in enumerate([
+        'GET /products', 'GET /products/{productId}', 'POST /orders', 'GET /orders/{orderId}',
+        'GET /campaigns', 'GET /campaigns/{campaignId}', 'POST /admin/campaigns',
+        'PATCH /admin/campaigns/{campaignId}'
+    ]):
         resource('Route'+str(i), 'ApiGatewayV2::Route', {'ApiId': ref('HttpApi'), 'RouteKey': route,
             'Target': {'Fn::Join': ['/', ['integrations', ref('Integration')]]}})
     resource('AccessLog', 'Logs::LogGroup', {'LogGroupName': '/aws/apigateway/flashrush-lab', 'RetentionInDays': 7})
@@ -107,7 +114,8 @@ def template(bucket, code_key):
     outputs = {name: {'Value': value} for name, value in {
         'ApiUrl': {'Fn::GetAtt': ['HttpApi', 'ApiEndpoint']}, 'WebsiteUrl': sub('https://${Distribution.DomainName}'),
         'WebsiteBucket': ref('Website'), 'DistributionId': ref('Distribution'), 'ProductsTable': ref('Products'),
-        'OrdersTable': ref('Orders'), 'QueueUrl': ref('Queue'), 'DLQUrl': ref('DLQ'), 'AlertsTopicArn': ref('Alerts')}.items()}
+        'OrdersTable': ref('Orders'), 'CampaignsTable': ref('Campaigns'), 'QueueUrl': ref('Queue'),
+        'DLQUrl': ref('DLQ'), 'AlertsTopicArn': ref('Alerts')}.items()}
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; nine application services', 'Resources': resources, 'Outputs': outputs}
 
 

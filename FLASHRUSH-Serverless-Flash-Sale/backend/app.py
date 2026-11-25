@@ -21,6 +21,7 @@ from botocore.exceptions import ClientError
 db = boto3.resource('dynamodb')
 products = db.Table(os.environ['PRODUCTS_TABLE'])
 orders = db.Table(os.environ['ORDERS_TABLE'])
+campaigns = db.Table(os.environ['CAMPAIGNS_TABLE'])
 ddb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
 serializer = TypeSerializer()
@@ -56,6 +57,69 @@ def read_order(order_id):
 
 def public_order(item):
     return {k: item[k] for k in ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt')}
+
+
+def parse_time(value):
+    if not isinstance(value, str):
+        raise ValueError('Invalid campaign time')
+    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if parsed.tzinfo is None:
+        raise ValueError('Campaign time must include timezone')
+    return parsed.astimezone(timezone.utc)
+
+
+def campaign_status(item, current=None):
+    current = current or datetime.now(timezone.utc)
+    start, end = parse_time(item['startTime']), parse_time(item['endTime'])
+    if current < start:
+        return 'UPCOMING'
+    if current > end:
+        return 'ENDED'
+    return 'ACTIVE'
+
+
+def public_campaign(item):
+    return {**item, 'status': campaign_status(item)}
+
+
+def read_campaign_items():
+    items, kwargs = [], {}
+    while True:
+        page = campaigns.scan(**kwargs)
+        items.extend(page['Items'])
+        if 'LastEvaluatedKey' not in page:
+            return items
+        kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+
+def campaign_payload(payload, current=None):
+    if not isinstance(payload, dict):
+        raise ValueError('Invalid campaign')
+    name = payload.get('name')
+    start_time, end_time = payload.get('startTime'), payload.get('endTime')
+    product_ids = payload.get('productIds')
+    max_qty = payload.get('maxQtyPerOrder')
+    start, end = parse_time(start_time), parse_time(end_time)
+    if (not isinstance(name, str) or not name.strip() or len(name) > 160 or start >= end or
+            not isinstance(product_ids, list) or not product_ids or
+            any(not isinstance(pid, str) or not pid or len(pid) > 128 for pid in product_ids) or
+            len(set(product_ids)) != len(product_ids) or type(max_qty) is not int or max_qty < 1):
+        raise ValueError('Invalid campaign')
+    record = {'name': name.strip(), 'startTime': start.isoformat(), 'endTime': end.isoformat(),
+              'productIds': product_ids, 'maxQtyPerOrder': max_qty}
+    record['status'] = campaign_status(record, current)
+    return record
+
+
+def active_campaign_limit(product_id, quantity):
+    current = datetime.now(timezone.utc)
+    matching = [item for item in read_campaign_items() if product_id in item.get('productIds', [])]
+    active = [item for item in matching if campaign_status(item, current) == 'ACTIVE']
+    if not active:
+        return 'CAMPAIGN_NOT_ACTIVE'
+    if any(quantity > item['maxQtyPerOrder'] for item in active):
+        return 'CAMPAIGN_QUANTITY_LIMIT'
+    return None
 
 
 def enqueue(item):
@@ -127,6 +191,43 @@ def route(event):
                 break
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
         return response(200, {'items': items})
+    if method == 'GET' and path == '/campaigns':
+        items = [public_campaign(item) for item in read_campaign_items()]
+        items.sort(key=lambda item: item['startTime'])
+        return response(200, {'items': items})
+    if method == 'GET' and path.startswith('/campaigns/'):
+        campaign_id = path.split('/')[-1]
+        item = campaigns.get_item(Key={'campaignId': campaign_id}).get('Item')
+        return response(200, public_campaign(item)) if item else error(404, 'CAMPAIGN_NOT_FOUND')
+    if method == 'POST' and path == '/admin/campaigns':
+        raw = event.get('body') or '{}'
+        if event.get('isBase64Encoded'):
+            raw = base64.b64decode(raw).decode()
+        payload = json.loads(raw)
+        record = campaign_payload(payload)
+        campaign_id = payload.get('campaignId') or str(uuid.uuid4())
+        if not isinstance(campaign_id, str) or not campaign_id or len(campaign_id) > 128:
+            return error(400, 'INVALID_REQUEST')
+        item = {'campaignId': campaign_id, **record}
+        campaigns.put_item(Item=item, ConditionExpression='attribute_not_exists(campaignId)')
+        return response(201, public_campaign(item))
+    if method == 'PATCH' and path.startswith('/admin/campaigns/'):
+        campaign_id = path.split('/')[-1]
+        existing = campaigns.get_item(Key={'campaignId': campaign_id}, ConsistentRead=True).get('Item')
+        if not existing:
+            return error(404, 'CAMPAIGN_NOT_FOUND')
+        raw = event.get('body') or '{}'
+        if event.get('isBase64Encoded'):
+            raw = base64.b64decode(raw).decode()
+        changes = json.loads(raw)
+        if not isinstance(changes, dict) or not changes or set(changes) - {
+                'name', 'startTime', 'endTime', 'productIds', 'maxQtyPerOrder'}:
+            return error(400, 'INVALID_REQUEST')
+        merged = {**existing, **changes}
+        record = campaign_payload(merged)
+        item = {'campaignId': campaign_id, **record}
+        campaigns.put_item(Item=item, ConditionExpression='attribute_exists(campaignId)')
+        return response(200, public_campaign(item))
     if method == 'GET' and path.startswith('/products/'):
         item = products.get_item(Key={'productId': path.split('/')[-1]}).get('Item')
         return response(200, item) if item else error(404, 'PRODUCT_NOT_FOUND')
@@ -152,7 +253,7 @@ def route(event):
     if not isinstance(payload, dict):
         return error(400, 'INVALID_REQUEST')
     pid, qty = payload.get('productId'), payload.get('quantity')
-    if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or qty != 1:
+    if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or qty < 1:
         return error(400, 'INVALID_REQUEST')
     payload_hash = digest(json.dumps({'productId': pid, 'quantity': qty}, sort_keys=True, separators=(',', ':')))
     oid = 'ord_' + digest('flashrush-demo:v1:' + key)[:32]
@@ -160,6 +261,9 @@ def route(event):
     if not item:
         if not products.get_item(Key={'productId': pid}).get('Item'):
             return error(404, 'PRODUCT_NOT_FOUND')
+        campaign_error = active_campaign_limit(pid, qty)
+        if campaign_error:
+            return error(409, campaign_error)
         item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'status': 'PENDING',
                 'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': now(),
                 'updatedAt': now(), 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0, 'correlationId': str(uuid.uuid4())}
