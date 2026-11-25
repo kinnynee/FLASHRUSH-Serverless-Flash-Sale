@@ -1,9 +1,18 @@
 .customer-toast { position: fixed; top: 16px; right: 16px; z-index: 100; width: max-content; max-width: calc(100% - 32px); padding: 14px 22px; background: #30252b; color: white; border-radius: 8px; box-shadow: 0 8px 28px #0002; pointer-events: none; }
 .header-dropdown { position: relative; padding-block: 12px; }
-.header-menu-trigger { display: grid; place-items: center; gap: 4px; border: 0; background: none; font-size: 11px; position: relative; max-width: 130px; }
+.header-menu-trigger { display: flex; align-items: center; justify-content: center; gap: 8px; width: 44px; height: 44px; padding: 10px; border: 1px solid #e8e3e3; border-radius: 8px; background: white; font-size: 12px; font-weight: 600; position: relative; max-width: 170px; }
+.header-menu-trigger:hover, .header-menu-trigger[aria-expanded=true] { background: #fff2f3; border-color: #f4b9c8; color: var(--color-brand-dark); }
+.header-menu-trigger:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 3px; }
 .header-menu-trigger > span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cart-badge { position: absolute; right: 0; top: -6px; background: var(--color-brand); color: white; min-width: 20px; border-radius: 20px; padding: 2px 5px; border: 2px solid white; font-size: 10px; }
 .storefront .customer-popover { top: 100%; right: -12px; width: 380px; max-width: calc(100vw - 24px); padding: 22px; }
+@media (max-width: 620px) {
+  .header-actions { gap: 6px; }
+  .header-dropdown { position: static; padding-block: 0; }
+  .header-menu-trigger { width: 44px; padding: 10px; }
+  .header-menu-trigger > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+  .storefront .customer-popover { top: 64px; right: 12px; }
+}
 .customer-popover h2 { padding-right: 15px; font-size: 17px; }
 .customer-popover .button { margin: 10px 6px 0 0; }
 .mini-cart-items { max-height: 340px; overflow-y: auto; margin-top: 12px; }
@@ -14,6 +23,8 @@
 .account-menu { display: grid; margin-top: 14px; }
 .account-menu a, .account-menu button { text-align: left; padding: 12px 0; border: 0; background: none; font-size: 13px; }
 .account-menu a:hover, .account-menu button:hover { color: var(--color-brand); }
+.admin-menu-link { display: block; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e8e3e3; color: var(--color-muted); font-size: 12px; }
+.admin-menu-link:hover { color: var(--color-brand); }
 .auth-layout { display: grid; grid-template-columns: 1fr 460px; align-items: center; gap: 60px; padding-block: 48px 70px; }
 .auth-brand h1 { font-size: clamp(30px,4vw,54px); letter-spacing: -2px; margin-block: 20px; }
 .auth-brand p { color: var(--color-muted); font-size: 16px; max-width: 400px; line-height: 1.8; }
@@ -103,3 +114,6 @@
   .cart-total span { font-size: 12px; }
   .cart-total small { font-size: 9px; }
 }
+
+.storefront .customer-popover .navbar { display: grid; gap: 0; margin: 14px 0 0; white-space: normal; }
+.storefront .customer-popover .navbar a { justify-content: flex-start; padding: 12px 0; font-size: 13px; font-weight: 500; }
