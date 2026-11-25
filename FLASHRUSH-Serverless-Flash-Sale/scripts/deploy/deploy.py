@@ -35,7 +35,7 @@ def template(bucket, code_key):
         'RedrivePolicy': {'deadLetterTargetArn': arn('DLQ'), 'maxReceiveCount': 5}})
     for role, statements in [('ApiRole', [
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Products')},
-        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem'], 'Resource': arn('Campaigns')},
+        {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:DeleteItem'], 'Resource': arn('Campaigns')},
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Orders')},
         {'Effect': 'Allow', 'Action': ['cloudwatch:GetMetricData'], 'Resource': '*'},
         {'Effect': 'Allow', 'Action': ['cloudwatch:DescribeAlarms'], 'Resource': sub('arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:flashrush-lab-*')},
@@ -67,13 +67,14 @@ def template(bucket, code_key):
         'ScalingConfig': {'MaximumConcurrency': 5}, 'Enabled': True})
     resource('HttpApi', 'ApiGatewayV2::Api', {'Name': 'flashrush-lab-api', 'ProtocolType': 'HTTP',
         'CorsConfiguration': {'AllowOrigins': [sub('https://${Distribution.DomainName}'), 'http://localhost:5173', 'http://127.0.0.1:5173'],
-            'AllowMethods': ['GET', 'POST', 'PATCH', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token', 'x-admin-key'], 'MaxAge': 300}})
+            'AllowMethods': ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'], 'AllowHeaders': ['content-type', 'idempotency-key', 'x-order-token', 'x-admin-key'], 'MaxAge': 300}})
     resource('Integration', 'ApiGatewayV2::Integration', {'ApiId': ref('HttpApi'), 'IntegrationType': 'AWS_PROXY',
         'IntegrationUri': arn('Api'), 'PayloadFormatVersion': '2.0', 'TimeoutInMillis': 20000})
     for i, route in enumerate([
         'GET /products', 'GET /products/{productId}', 'POST /orders', 'GET /orders/{orderId}',
         'GET /campaigns', 'GET /campaigns/{campaignId}', 'POST /admin/campaigns',
-        'PATCH /admin/campaigns/{campaignId}', 'GET /admin/overview', 'GET /admin/orders',
+        'PATCH /admin/campaigns/{campaignId}', 'DELETE /admin/campaigns/{campaignId}',
+        'GET /admin/overview', 'GET /admin/orders',
         'POST /admin/products', 'PATCH /admin/products/{productId}', 'GET /admin/monitoring'
     ]):
         resource('Route'+str(i), 'ApiGatewayV2::Route', {'ApiId': ref('HttpApi'), 'RouteKey': route,

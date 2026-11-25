@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { AdminTopbar } from "../components/admin/AdminTopbar";
+import { AdminApiKeyControl } from "../components/admin/AdminApiKeyControl";
 import { Button } from "../components/common/Button";
 import { getAdminKey } from "../services/adminAuth";
 import {
@@ -104,12 +105,7 @@ export function MonitoringDashboardPage() {
 
   return (
     <>
-      <AdminTopbar
-        onConnect={() => {
-          setSnapshot(undefined);
-          refresh();
-        }}
-      />
+      <AdminTopbar />
       <div className="dash-admin">
         <AdminSidebar />
         <main id="main-content" tabIndex={-1} className="dash-admin-main">
@@ -148,6 +144,7 @@ export function MonitoringDashboardPage() {
             </div>
           </header>
           <div className="dash-admin-body dash-stack" aria-busy={loading}>
+            <AdminApiKeyControl onChange={() => { setSnapshot(undefined); refresh(); }} />
             {error && (
               <div className="order-error" role="alert">
                 {error}

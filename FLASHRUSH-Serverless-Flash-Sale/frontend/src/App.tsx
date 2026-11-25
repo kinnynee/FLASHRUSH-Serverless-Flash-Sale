@@ -32,6 +32,7 @@ export default function App() {
       '/auth': 'Đăng nhập và đăng ký', '/cart': 'Giỏ hàng', '/account': 'Tài khoản của tôi', '/account/orders': 'Đơn mua', '/account/addresses': 'Địa chỉ nhận hàng', '/account/password': 'Đổi mật khẩu',
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
+      '/admin/campaigns': 'Đợt Flash Sale',
       '/admin/orders': 'Đơn hàng · Quản trị demo',
       '/admin/monitoring': 'Giám sát hệ thống',
     };

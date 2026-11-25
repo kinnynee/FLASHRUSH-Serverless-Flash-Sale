@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { DashboardProduct } from '../../types/dashboard';
 import type { OrderRecord } from '../../types/order';
@@ -115,8 +116,9 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
 
 export function AdminOrdersTable() {
   const [status, setStatus] = useState('');
-  const [cursor, setCursor] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,13 +126,26 @@ export function AdminOrdersTable() {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let active = true; setLoading(true); setError('');
-    dashboardService.getAdminOrders(status, cursor, 25).then(page => {
-      if (active) { setOrders(page.items); setNextCursor(page.nextCursor); }
+    dashboardService.getAdminOrders(status, pageNumber, 25).then(result => {
+      if (active) {
+        setOrders(result.items);
+        setNextCursor(result.nextCursor);
+        setTotalPages(result.totalPages);
+        setTotalCount(result.totalCount);
+        if (result.page !== pageNumber) setPageNumber(result.page);
+      }
     }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Không thể tải đơn hàng.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [status, cursor, version]);
-  function changeStatus(value: string) { setStatus(value); setCursor(''); setHistory([]); }
+  }, [status, pageNumber, version]);
+  function changeStatus(value: string) { setStatus(value); setPageNumber(1); }
+  const pageItems: (number | 'start-gap' | 'end-gap')[] = totalPages <= 7
+    ? Array.from({ length: totalPages }, (_, index) => index + 1)
+    : pageNumber <= 4
+      ? [1, 2, 3, 4, 5, 'end-gap', totalPages]
+      : pageNumber >= totalPages - 3
+        ? [1, 'start-gap', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
+        : [1, 'start-gap', pageNumber - 1, pageNumber, pageNumber + 1, 'end-gap', totalPages];
   return <section className="dash-card dash-table-card" aria-labelledby="dash-admin-orders">
     <div className="dash-section-heading"><div><h2 id="dash-admin-orders">Đơn hàng</h2><p>Dữ liệu trực tiếp từ DynamoDB</p></div>
       <div className="dash-table-actions"><label>Trạng thái<select value={status} onChange={event => changeStatus(event.target.value)}><option value="">Tất cả</option>{['PENDING','PROCESSING','CONFIRMED','OUT_OF_STOCK','FAILED'].map(value => <option key={value}>{value}</option>)}</select></label>
@@ -138,7 +153,20 @@ export function AdminOrdersTable() {
     </div>
     {error && <p className="campaign-error" role="alert">{error}</p>}{loading ? <p role="status">Đang tải đơn hàng...</p> : orders.length === 0 ? <EmptyState title="Chưa có đơn hàng" description="Không có đơn hàng phù hợp bộ lọc." /> :
       <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{formatPrice(order.item.unitPrice * order.item.quantity)}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
-    <div className="dash-product-form-actions"><button className="button button-secondary" disabled={!history.length || loading} onClick={() => { setCursor(history[history.length - 1]); setHistory(current => current.slice(0, -1)); }}>Trang trước</button><button className="button button-secondary" disabled={!nextCursor || loading} onClick={() => { setHistory(current => [...current, cursor]); setCursor(nextCursor || ''); }}>Trang tiếp</button></div>
+    {!loading && totalPages > 1 && <div className="dash-pagination">
+      <span className="dash-pagination-count">{totalCount.toLocaleString('vi-VN')} đơn hàng</span>
+      <nav aria-label="Phân trang đơn hàng" className="dash-pagination-controls">
+        <button type="button" className="dash-page-button dash-page-arrow" aria-label="Trang trước" title="Trang trước"
+          disabled={pageNumber <= 1 || loading} onClick={() => setPageNumber(value => Math.max(1, value - 1))}><ChevronLeft size={16} /></button>
+        {pageItems.map(item => typeof item === 'number'
+          ? <button type="button" key={item} className={`dash-page-button${pageNumber === item ? ' is-current' : ''}`}
+              aria-label={`Trang ${item}`} aria-current={pageNumber === item ? 'page' : undefined} disabled={loading}
+              onClick={() => setPageNumber(item)}>{item}</button>
+          : <span className="dash-page-ellipsis" key={item}>…</span>)}
+        <button type="button" className="dash-page-button dash-page-arrow" aria-label="Trang tiếp" title="Trang tiếp"
+          disabled={pageNumber >= totalPages || loading || !nextCursor} onClick={() => setPageNumber(value => Math.min(totalPages, value + 1))}><ChevronRight size={16} /></button>
+      </nav>
+    </div>}
   </section>;
 }
 
