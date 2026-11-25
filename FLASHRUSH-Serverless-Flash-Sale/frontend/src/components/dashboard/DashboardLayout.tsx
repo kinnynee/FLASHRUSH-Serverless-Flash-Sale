@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useOutletContext } from 'react-router-dom';
+import { Outlet, useOutletContext, useLocation } from 'react-router-dom';
 import { dashboardService } from '../../services/dashboardService';
 import type { DashboardScenario, DashboardSnapshot } from '../../types/dashboard';
 
@@ -34,10 +34,12 @@ function readScenario(): DashboardScenario {
 }
 
 export function DashboardLayout() {
+  const monitoring = useLocation().pathname === '/admin/monitoring';
   const [request, setRequest] = useState(() => ({ scenario: readScenario() }));
   const [result, setResult] = useState<DashboardResult>({ status: 'loading' });
 
   useEffect(() => {
+    if (monitoring) return;
     let active = true;
     void dashboardService.getDashboardSnapshot(request.scenario).then(
       snapshot => { if (active) setResult({ status: 'success', snapshot }); },
@@ -46,7 +48,7 @@ export function DashboardLayout() {
       },
     );
     return () => { active = false; };
-  }, [request]);
+  }, [request, monitoring]);
 
   function load(scenario: DashboardScenario) {
     setResult({ status: 'loading' });

@@ -35,6 +35,32 @@ class GuardTests(unittest.TestCase):
         self.assertNotIn('CustomErrorResponses', config)
         self.assertEqual(config['DefaultCacheBehavior']['FunctionAssociations'][0]['EventType'], 'viewer-request')
 
+    def test_admin_routes_require_iam(self):
+        routes = {resource['Properties']['RouteKey']: resource['Properties']
+                  for resource in template('bucket', 'key')['Resources'].values()
+                  if resource['Type'] == 'AWS::ApiGatewayV2::Route'}
+        for route in ('POST /admin/campaigns', 'PATCH /admin/campaigns/{campaignId}'):
+            self.assertEqual(routes[route]['AuthorizationType'], 'AWS_IAM')
+        for route in ('GET /products', 'GET /campaigns', 'POST /orders', 'GET /orders/{orderId}'):
+            self.assertEqual(routes[route]['AuthorizationType'], 'NONE')
+
+    def test_shared_module_environment_for_both_handlers(self):
+        resources = template('bucket', 'key')['Resources']
+        for name in ('Api', 'Worker'):
+            variables = resources[name]['Properties']['Environment']['Variables']
+            for key in ('PRODUCTS_TABLE', 'ORDERS_TABLE', 'CAMPAIGNS_TABLE', 'QUEUE_URL'):
+                self.assertIn(key, variables)
+
+    def test_monitoring_read_permissions_and_environment(self):
+        resources = template('bucket', 'key')['Resources']
+        statements = resources['ApiRole']['Properties']['Policies'][0]['PolicyDocument']['Statement']
+        self.assertTrue(any('cloudwatch:GetMetricData' in entry['Action'] for entry in statements))
+        variables = resources['Api']['Properties']['Environment']['Variables']
+        self.assertEqual(variables['MONITORING_WORKER_FUNCTION'], 'flashrush-lab-worker')
+        routes = [r['Properties'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route']
+        route = next(r for r in routes if r['RouteKey'] == 'GET /admin/monitoring')
+        self.assertEqual(route['AuthorizationType'], 'NONE')  # Backend validates the admin key before CloudWatch access.
+
     def test_recovery_age_and_attempt_boundaries(self):
         path = Path(__file__).resolve().parents[1] / 'ops/reconcile_pending.py'
         spec = importlib.util.spec_from_file_location('reconcile', path)

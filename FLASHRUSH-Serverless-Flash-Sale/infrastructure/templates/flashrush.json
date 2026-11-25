@@ -178,6 +178,22 @@
                 },
                 {
                   "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:GetMetricData"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:DescribeAlarms"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:flashrush-lab-*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
                   "Action": "sqs:SendMessage",
                   "Resource": {
                     "Fn::GetAtt": [
@@ -298,7 +314,7 @@
         "MemorySize": 256,
         "Code": {
           "S3Bucket": "flashrush-lab-artifacts-303278700480-us-east-1",
-          "S3Key": "lambda/87876ed885fe56003c78246206e9c280d005341ae2f617e682ddf80d5ce71060.zip"
+          "S3Key": "lambda/ec40afb39bf16595f823d52cdabe5d7fb02031218a4056ebe6d856d6b51f71fc.zip"
         },
         "Environment": {
           "Variables": {
@@ -316,7 +332,12 @@
             },
             "ADMIN_API_KEY": {
               "Ref": "AdminApiKey"
-            }
+            },
+            "MONITORING_API_FUNCTION": "flashrush-lab-api",
+            "MONITORING_WORKER_FUNCTION": "flashrush-lab-worker",
+            "MONITORING_QUEUE_NAME": "flashrush-lab-orders",
+            "MONITORING_DLQ_NAME": "flashrush-lab-dlq",
+            "MONITORING_ALARM_NAMES": "flashrush-lab-dlqalarm,flashrush-lab-workererroralarm,flashrush-lab-queueagealarm"
           }
         },
         "Architectures": [
@@ -348,7 +369,7 @@
         "MemorySize": 256,
         "Code": {
           "S3Bucket": "flashrush-lab-artifacts-303278700480-us-east-1",
-          "S3Key": "lambda/87876ed885fe56003c78246206e9c280d005341ae2f617e682ddf80d5ce71060.zip"
+          "S3Key": "lambda/ec40afb39bf16595f823d52cdabe5d7fb02031218a4056ebe6d856d6b51f71fc.zip"
         },
         "Environment": {
           "Variables": {
@@ -360,6 +381,9 @@
             },
             "QUEUE_URL": {
               "Ref": "Queue"
+            },
+            "CAMPAIGNS_TABLE": {
+              "Ref": "Campaigns"
             }
           }
         },
@@ -445,6 +469,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /products",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -465,6 +490,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /products/{productId}",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -485,6 +511,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /orders",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -505,6 +532,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /orders/{orderId}",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -525,6 +553,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /campaigns",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -545,6 +574,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /campaigns/{campaignId}",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",
@@ -565,6 +595,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /admin/campaigns",
+        "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
             "/",
@@ -585,6 +616,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/campaigns/{campaignId}",
+        "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
             "/",
@@ -605,6 +637,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/overview",
+        "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
             "/",
@@ -625,6 +658,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/orders",
+        "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
             "/",
@@ -645,6 +679,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /admin/products",
+        "AuthorizationType": "AWS_IAM",
         "Target": {
           "Fn::Join": [
             "/",
@@ -665,6 +700,28 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/products/{productId}",
+        "AuthorizationType": "AWS_IAM",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Route12": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/monitoring",
+        "AuthorizationType": "NONE",
         "Target": {
           "Fn::Join": [
             "/",

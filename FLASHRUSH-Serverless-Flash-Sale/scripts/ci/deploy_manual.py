@@ -31,7 +31,9 @@ def main():
     except s3.exceptions.NoSuchKey: pass
     if old_index is not None: (output/'index-before.html').write_bytes(old_index)
     buf=io.BytesIO()
-    with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z: z.writestr('app.py',(ROOT/'backend/app.py').read_bytes())
+    with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
+        for name in ('app.py', 'monitoring.py'):
+            z.writestr(name, (ROOT/'backend'/name).read_bytes())
     payload=buf.getvalue(); expected=base64.b64encode(hashlib.sha256(payload).digest()).decode()
     def invalidate():
         d=cf.create_invalidation(DistributionId=distribution,InvalidationBatch={'Paths':{'Quantity':1,'Items':['/*']},'CallerReference':os.environ.get('GITHUB_RUN_ID','local')+'-'+str(time.time_ns())})
