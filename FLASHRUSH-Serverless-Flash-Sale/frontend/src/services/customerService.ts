@@ -8,8 +8,11 @@ export type CartInput = { productId: string; quantity: number; color: string; un
 export type CartLine = CartInput & { lineId: string; product: Product | null; issue: string | null; priceChanged: boolean };
 export type Cart = { version: number; items: CartLine[] };
 export type CustomerOrder = { orderId: string; checkoutId: string; status: OrderStatus; item: OrderItem; address: Address; createdAt: string; updatedAt: string; failureReason?: string };
-export type Checkout = { checkoutId: string; status: OrderStatus; orders: CustomerOrder[] };
-export type CheckoutInput = { version: number; lineIds: string[]; addressId: string };
+export type Pricing = { subtotal: number; discount: number; shippingFee: number; total: number; voucherCode: string; shippingMethod: string; paymentMethod: string; quantity: number };
+export type CheckoutOptions = { shipping: { id: string; name: string; fee: number }[]; payments: { id: string; name: string }[]; voucher: { code: string; minimum: number; basisPoints: number } };
+export type QuoteInput = { version: number; lineIds: string[]; voucherCode?: string; shippingMethod?: string; paymentMethod?: string };
+export type Checkout = { checkoutId: string; status: OrderStatus; orders: CustomerOrder[]; pricing?: Pricing };
+export type CheckoutInput = QuoteInput & { addressId: string; expectedTotal?: number };
 export class CustomerApiError extends Error {
   constructor(public code: string, public status: number) { super(customerMessage(code)); }
 }
@@ -30,6 +33,12 @@ export function customerMessage(code: string) {
     VARIANT_CHANGED: 'Phân loại sản phẩm đã thay đổi.',
     INVALID_PHONE: 'Số điện thoại cần có 8–20 chữ số, có thể bắt đầu bằng +.',
     INVALID_AVATAR_URL: 'Ảnh đại diện cần dùng đường dẫn HTTPS.',
+    INVALID_VOUCHER: 'Mã giảm giá không hợp lệ.',
+    VOUCHER_MINIMUM_NOT_MET: 'HAUMON áp dụng khi tiền sản phẩm được chọn đạt từ 3.600.000đ.',
+    QUOTE_CHANGED: 'Tổng thanh toán đã thay đổi. Vui lòng xem lại báo giá trước khi đặt hàng.',
+    QUOTE_REQUIRED: 'Vui lòng tải báo giá trước khi đặt hàng.',
+    INVALID_SHIPPING_METHOD: 'Phương thức vận chuyển không được hỗ trợ.',
+    INVALID_PAYMENT_METHOD: 'Phương thức thanh toán không được hỗ trợ.',
   };
   return messages[code] || 'Không thể thực hiện yêu cầu. Vui lòng kiểm tra dữ liệu và thử lại.';
 }
@@ -48,6 +57,8 @@ async function request<T>(path: string, method = 'GET', body?: unknown, key?: st
   return data as T;
 }
 export const customerService = {
+  checkoutOptions: () => request<CheckoutOptions>('/me/checkout-quote'),
+  quote: (body: QuoteInput) => request<Pricing>('/me/checkout-quote', 'POST', body),
   profile: () => request<Profile>('/me/profile'),
   saveProfile: ({ email: _email, ...profile }: Profile) => request<Profile>('/me/profile', 'PUT', profile),
   cart: () => request<Cart>('/me/cart'),

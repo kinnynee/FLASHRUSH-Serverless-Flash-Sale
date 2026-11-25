@@ -29,6 +29,7 @@ export default function App() {
     const titles: Record<string, string> = {
       '/': 'Flash Sale hôm nay',
       '/products': 'Sản phẩm Flash Sale',
+      '/cart/checkout': 'Xác nhận đơn hàng',
       '/auth': 'Đăng nhập và đăng ký', '/cart': 'Giỏ hàng', '/account': 'Tài khoản của tôi', '/account/orders': 'Đơn mua', '/account/addresses': 'Địa chỉ nhận hàng', '/account/password': 'Đổi mật khẩu',
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/auth" element={<CustomerAuthPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/cart/checkout" element={<CartPage checkoutMode />} />
         <Route path="/account" element={<CustomerAccountPage />} />
         <Route path="/account/addresses" element={<CustomerAccountPage section="addresses" />} />
         <Route path="/account/password" element={<CustomerAccountPage section="password" />} />
