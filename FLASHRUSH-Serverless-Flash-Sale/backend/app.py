@@ -27,6 +27,7 @@ sqs = boto3.client('sqs')
 serializer = TypeSerializer()
 log = logging.getLogger()
 log.setLevel(logging.INFO)
+MAX_QUANTITY = 100
 TERMINAL = {'CONFIRMED', 'OUT_OF_STOCK', 'FAILED'}
 
 
@@ -312,7 +313,7 @@ def route(event):
     if not isinstance(payload, dict):
         return error(400, 'INVALID_REQUEST')
     pid, qty = payload.get('productId'), payload.get('quantity')
-    if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or qty < 1:
+    if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or not 1 <= qty <= MAX_QUANTITY:
         return error(400, 'INVALID_REQUEST')
     payload_hash = digest(json.dumps({'productId': pid, 'quantity': qty}, sort_keys=True, separators=(',', ':')))
     oid = 'ord_' + digest('flashrush-demo:v1:' + key)[:32]
@@ -356,6 +357,8 @@ def process(message):
         return
     if any(message.get(k) != item[k] for k in ('productId', 'quantity')):
         raise ValueError('Message mismatch')
+    if isinstance(item['quantity'], bool) or item['quantity'] != int(item['quantity']) or not 1 <= item['quantity'] <= MAX_QUANTITY:
+        raise ValueError('Invalid quantity')
     order_update = {'TableName': orders.name, 'Key': values({'orderId': item['orderId']}),
         'UpdateExpression': 'SET #s=:next, updatedAt=:at', 'ConditionExpression': '#s=:pending',
         'ExpressionAttributeNames': {'#s': 'status'},

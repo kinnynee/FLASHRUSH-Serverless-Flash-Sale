@@ -1,0 +1,72 @@
+name: Deploy AWS main
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flashrush-manual-production
+  cancel-in-progress: false
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FLASHRUSH-Serverless-Flash-Sale
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: FLASHRUSH-Serverless-Flash-Sale/frontend/package-lock.json
+      - run: pip install -r backend/requirements-lock.txt
+      - run: python -m unittest discover -s backend -p 'test_*.py'
+      - run: python -m unittest discover -s scripts/deploy -p 'test_*.py'
+      - run: python -m unittest discover -s scripts/ops -p 'test_load_test.py'
+      - run: npm ci --prefix frontend
+      - run: npm test --prefix frontend
+      - run: npm audit --prefix frontend --audit-level=high
+      - run: npm run build --prefix frontend
+        env:
+          VITE_ORDER_MODE: http
+          VITE_API_BASE_URL: https://56l39g5pqk.execute-api.us-east-1.amazonaws.com
+          VITE_DEMO_SERVICE_ERROR: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: FLASHRUSH-Serverless-Flash-Sale/frontend/dist
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3==1.44.5
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: FLASHRUSH-Serverless-Flash-Sale/frontend/dist
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::303278700480:role/flashrush-github-main-deploy
+          aws-region: us-east-1
+          allowed-account-ids: '303278700480'
+      - name: Deploy and verify
+        run: python FLASHRUSH-Serverless-Flash-Sale/scripts/ci/deploy_manual.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-backups-${{ github.run_id }}
+          path: FLASHRUSH-Serverless-Flash-Sale/.build/release
+          retention-days: 14
