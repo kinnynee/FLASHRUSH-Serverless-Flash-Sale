@@ -1,5 +1,6 @@
 import type { Product } from '../types/product';
 import { mockProductService } from './mockProductService';
+import { syncServerTime } from '../utils/serverClock';
 
 export interface ProductService {
   getProducts(): Promise<Product[]>;
@@ -11,7 +12,9 @@ async function readCatalog(path: string) {
   const response = await fetch(`${base.replace(/\/$/, '')}${path}`, { signal: AbortSignal.timeout(10000) });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error('Không thể tải sản phẩm.');
-  return response.json();
+  const data = await response.json();
+  if (data && typeof data === 'object') syncServerTime((data as Record<string, unknown>).serverTime);
+  return data;
 }
 function product(value: unknown): Product {
   if (!value || typeof value !== 'object') throw new Error('Dữ liệu sản phẩm không hợp lệ.');
