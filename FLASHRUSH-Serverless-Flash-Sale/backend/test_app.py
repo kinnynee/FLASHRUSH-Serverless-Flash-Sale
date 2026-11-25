@@ -69,6 +69,21 @@ class BackendTests(unittest.TestCase):
         self.app.process({'schemaVersion': '1.0', **{k: item[k] for k in ('orderId', 'productId', 'quantity')}})
         self.assertEqual(self.app.products.get_item(Key={'productId': 'sku'})['Item']['stock'], 0)
 
+    def test_monitoring_auth_window_and_dependency_error(self):
+        with patch('monitoring.snapshot') as read:
+            self.assertEqual(self.request('GET', '/admin/monitoring')[0]['statusCode'], 401)
+            read.assert_not_called()
+            headers = {'X-Admin-Key': self.app.ADMIN_API_KEY}
+            self.assertEqual(self.request('GET', '/admin/monitoring?minutes=999', headers=headers)[0]['statusCode'], 400)
+            read.assert_not_called()
+            read.return_value = {'source': 'CLOUDWATCH'}
+            self.assertEqual(self.request('GET', '/admin/monitoring?minutes=15', headers=headers)[1]['source'], 'CLOUDWATCH')
+            read.assert_called_once_with(15)
+            read.side_effect = RuntimeError('unavailable')
+            result, body = self.request('GET', '/admin/monitoring', headers=headers)
+            self.assertEqual(result['statusCode'], 503)
+            self.assertEqual(body['error']['code'], 'CLOUDWATCH_UNAVAILABLE')
+
     def test_replay_conflict_and_token(self):
         key, _, item = self.post()
         self.assertEqual(self.post(key)[2]['orderId'], item['orderId'])

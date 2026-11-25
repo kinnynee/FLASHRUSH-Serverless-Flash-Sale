@@ -1,7 +1,7 @@
 # FLASHRUSH — Frontend Demo
 
 React + Vite + TypeScript + Tailwind CSS + React Router + Lucide React.
-Default mode uses demo data. HTTP mode connects the catalog and orders to the configured API; Admin/Monitoring remain simulated.
+HTTP mode connects the catalog and orders to the configured API. F05 Admin uses its configured API; F06 Monitoring always requires the real CloudWatch API.
 
 ## Run locally
 
@@ -49,13 +49,23 @@ Tracking polls every two seconds, backs off after request failures (up to 16 sec
 
 Order history belongs to this browser. Its refresh button checks accessible orders, saves successful updates and retains cached cards with a warning if a request fails. Access tokens remain in session storage; losing that session prevents live verification. No token is added to URLs or local history.
 
+## F06 CloudWatch monitoring
+
+`/admin/monitoring` calls the authenticated `GET /admin/monitoring?minutes=15|60|180` API. It never uses mock snapshots or zero placeholders. Set `VITE_API_BASE_URL` to the deployed endpoint, then enter the admin API key in the page. The key is kept in session storage, never bundled into the frontend; Disconnect clears it.
+
+The page shows API/Worker invocations, errors, throttles, weighted average duration, peak concurrency, the latest SQS/DLQ datapoints and real CloudWatch alarm states. Windows use one-minute buckets and exclude the incomplete current minute. Missing metrics remain unknown; CloudWatch can lag by several minutes. Each queue value includes its observation time. Automatic refresh runs once per minute without overlapping requests, pauses in hidden tabs and preserves the previous snapshot with an error warning on failure.
+
+Time-series charts use the shadcn/ui Chart component (New York / Tailwind v4 registry) with Recharts 3. SQS/DLQ counts, queue age and Lambda activity/concurrency use separate units and minute-aligned timestamps. Missing minutes are null gaps; zero readings and isolated points remain visible. Tooltips and legends identify each series, keyboard arrow navigation is supported, and the raw tables remain available below. Chart code loads only when opening Monitoring.
+
+The CloudFormation deployment configures the Lambda resource names, alarm names and read-only CloudWatch permissions. The monitoring route uses backend admin-key authentication; existing IAM-protected mutation routes stay protected. Manual deployments need the same environment variables and IAM permissions before this endpoint can work. No AWS credentials belong in the browser.
+
 ## Admin and monitoring behavior
 
-Open `/admin` to review the read-only Admin Dashboard and `/admin/monitoring` to open the observability view. Both pages are labelled as simulation data and do not connect to AWS, use AWS credentials, change stock, replay queue messages or edit orders.
+Open `/admin` for the Admin Dashboard and `/admin/monitoring` for CloudWatch observability. Monitoring is read-only and does not change stock, replay messages or edit orders.
 
-The default scenario is **Cảnh báo DLQ**, a fixed snapshot with 100 accepted requests, 10 confirmed orders, 88 out-of-stock orders and 2 failed orders. The Monitoring page has controlled scenarios for normal operation, an empty session and a loading error. Its refresh control reloads the selected snapshot without generating random values. Product inventory is derived from the same confirmed mock orders used by the KPI cards.
+Admin demo fixtures remain available when no API base URL is configured. Monitoring has no demo scenario selector and never falls back to these fixtures.
 
-`src/services/dashboardService.ts` exposes the dashboard service abstraction. `mockDashboardService.ts` is active. `httpDashboardService.ts` is an integration seam only because the documented MVP contract has no protected dashboard endpoint.
+`src/services/dashboardService.ts` selects the HTTP Admin adapter when an API base URL is set. `src/services/monitoringService.ts` separately validates and reads real CloudWatch snapshots.
 
 ## Mock behavior
 
@@ -77,7 +87,7 @@ Types: `src/types/product.ts` exports `Product` and `CheckoutIntent`. `src/utils
 
 This is a temporary frontend contract requiring Developer 2 confirmation. IDs are stable slugs, never list indexes. Retrieve a fresh product with `productService.getProductById(productId)` and validate quantity/availability again. URL data is untrusted. Never accept price or stock supplied by a query string as authoritative.
 
-Buy Now navigates to Checkout. Orders support processing, result and browser history. Default mode is mock; VITE_ORDER_MODE=http uses the configured API for products and orders. Admin/Monitoring remain simulated.
+Buy Now navigates to Checkout. Orders support processing, result and browser history. Set VITE_ORDER_MODE=http to use the configured API for products and orders.
 
 Shared components are organized under `components/common`, `components/layout`, `components/product`. Theme tokens in `src/styles/index.css` (`@theme`) are also usable as Tailwind utilities, e.g. `bg-brand`, `text-ink`, `bg-canvas`. Reuse `Button` primary/secondary, `formatPrice`, `StockIndicator`, `LoadingSkeleton`, and `EmptyState`. Follow native button/link semantics, explicit field labels, visible keyboard focus, and reduced-motion preferences.
 

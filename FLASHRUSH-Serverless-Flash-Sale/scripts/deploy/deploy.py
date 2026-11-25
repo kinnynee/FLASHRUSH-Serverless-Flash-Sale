@@ -36,6 +36,8 @@ def template(bucket, code_key):
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Products')},
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem'], 'Resource': arn('Campaigns')},
         {'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:Scan', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Orders')},
+        {'Effect': 'Allow', 'Action': ['cloudwatch:GetMetricData'], 'Resource': '*'},
+        {'Effect': 'Allow', 'Action': ['cloudwatch:DescribeAlarms'], 'Resource': sub('arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:flashrush-lab-*')},
         {'Effect': 'Allow', 'Action': 'sqs:SendMessage', 'Resource': arn('Queue')}]),
         ('WorkerRole', [
         {'Effect': 'Allow', 'Action': ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes'], 'Resource': arn('Queue')},
@@ -49,9 +51,12 @@ def template(bucket, code_key):
     for name, handler, role in [('Api', 'api', 'ApiRole'), ('Worker', 'worker', 'WorkerRole')]:
         resource(name+'Log', 'Logs::LogGroup', {'LogGroupName': '/aws/lambda/flashrush-lab-'+handler, 'RetentionInDays': 7})
         variables = {'PRODUCTS_TABLE': ref('Products'), 'ORDERS_TABLE': ref('Orders'), 'QUEUE_URL': ref('Queue')}
+        variables['CAMPAIGNS_TABLE'] = ref('Campaigns')
         if name == 'Api':
-            variables['CAMPAIGNS_TABLE'] = ref('Campaigns')
             variables['ADMIN_API_KEY'] = ref('AdminApiKey')
+            variables.update(MONITORING_API_FUNCTION='flashrush-lab-api', MONITORING_WORKER_FUNCTION='flashrush-lab-worker',
+                MONITORING_QUEUE_NAME='flashrush-lab-orders', MONITORING_DLQ_NAME='flashrush-lab-dlq',
+                MONITORING_ALARM_NAMES='flashrush-lab-dlqalarm,flashrush-lab-workererroralarm,flashrush-lab-queueagealarm')
         resource(name, 'Lambda::Function', {'FunctionName': 'flashrush-lab-'+handler, 'Runtime': 'python3.12',
             'Handler': 'app.'+handler, 'Role': arn(role), 'Timeout': 15, 'MemorySize': 256,
             'Code': {'S3Bucket': bucket, 'S3Key': code_key}, 'Environment': {'Variables': variables},
@@ -68,9 +73,11 @@ def template(bucket, code_key):
         'GET /products', 'GET /products/{productId}', 'POST /orders', 'GET /orders/{orderId}',
         'GET /campaigns', 'GET /campaigns/{campaignId}', 'POST /admin/campaigns',
         'PATCH /admin/campaigns/{campaignId}', 'GET /admin/overview', 'GET /admin/orders',
-        'POST /admin/products', 'PATCH /admin/products/{productId}'
+        'POST /admin/products', 'PATCH /admin/products/{productId}', 'GET /admin/monitoring'
     ]):
         resource('Route'+str(i), 'ApiGatewayV2::Route', {'ApiId': ref('HttpApi'), 'RouteKey': route,
+            # Monitoring uses the backend admin-key check; mutation routes retain IAM protection.
+            'AuthorizationType': 'AWS_IAM' if '/admin/' in route and route != 'GET /admin/monitoring' else 'NONE',
             'Target': {'Fn::Join': ['/', ['integrations', ref('Integration')]]}})
     resource('AccessLog', 'Logs::LogGroup', {'LogGroupName': '/aws/apigateway/flashrush-lab', 'RetentionInDays': 7})
     resource('Stage', 'ApiGatewayV2::Stage', {'ApiId': ref('HttpApi'), 'StageName': '$default', 'AutoDeploy': True,
@@ -159,6 +166,7 @@ def main():
     code = build / 'backend.zip'
     with zipfile.ZipFile(code, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.write(ROOT / 'backend/app.py', 'app.py')
+        archive.write(ROOT / 'backend/monitoring.py', 'monitoring.py')
     key = 'lambda/' + hashlib.sha256(code.read_bytes()).hexdigest() + '.zip'
     s3.upload_file(str(code), bucket, key)
     document = template(bucket, key)

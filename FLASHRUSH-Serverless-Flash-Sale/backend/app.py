@@ -344,6 +344,18 @@ def route(event):
             return error(401, 'ADMIN_UNAUTHORIZED')
     if method == 'GET' and path == '/admin/overview':
         return response(200, admin_overview_payload())
+    if method == 'GET' and path == '/admin/monitoring':
+        from monitoring import snapshot
+        minutes = (event.get('queryStringParameters') or {}).get('minutes', '60')
+        if minutes not in ('15', '60', '180'):
+            return error(400, 'INVALID_MONITORING_WINDOW')
+        try:
+            return response(200, snapshot(int(minutes)))
+        except ValueError:
+            return error(503, 'MONITORING_NOT_CONFIGURED')
+        except Exception:
+            log.exception('CloudWatch monitoring request failed')
+            return error(503, 'CLOUDWATCH_UNAVAILABLE', True)
     if method == 'GET' and path == '/admin/orders':
         query = event.get('queryStringParameters') or {}
         result = admin_orders_page(query)

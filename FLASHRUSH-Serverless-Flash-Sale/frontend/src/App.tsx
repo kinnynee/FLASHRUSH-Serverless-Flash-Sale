@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -12,7 +12,7 @@ import { OrderResultPage } from './pages/OrderResultPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
-import { MonitoringDashboardPage } from './pages/MonitoringDashboardPage';
+const MonitoringDashboardPage = lazy(() => import('./pages/MonitoringDashboardPage').then(module => ({ default: module.MonitoringDashboardPage })));
 
 function StorefrontLayout() {
   return <><Header /><main id="main-content" tabIndex={-1}><Outlet /></main><Footer /></>;
@@ -60,7 +60,7 @@ export default function App() {
         <Route path="campaigns" element={<AdminDashboardPage section="campaigns" />} />
         <Route path="orders" element={<AdminDashboardPage section="orders" />} />
         <Route path="orders/:orderId" element={<AdminDashboardPage section="detail" />} />
-        <Route path="monitoring" element={<MonitoringDashboardPage />} />
+        <Route path="monitoring" element={<Suspense fallback={<p role="status">Đang tải biểu đồ giám sát...</p>}><MonitoringDashboardPage /></Suspense>} />
         <Route path="*" element={<AdminDashboardPage section="missing" />} />
       </Route>
     </Routes>
