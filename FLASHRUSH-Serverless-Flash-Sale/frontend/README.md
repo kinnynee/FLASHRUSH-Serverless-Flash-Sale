@@ -1,7 +1,7 @@
 # FLASHRUSH — Frontend Demo
 
 React + Vite + TypeScript + Tailwind CSS + React Router + Lucide React.
-Implementation scope: Frontend Developer 1. No AWS, authentication, payments or real orders are connected.
+Default mode uses demo data. HTTP mode connects the catalog and orders to the configured API; Admin/Monitoring remain simulated.
 
 ## Run locally
 
@@ -31,7 +31,17 @@ Open the local URL printed by Vite. `npm run build` checks TypeScript and produc
 
 Search/filter state is encoded in `q`, `category`, `min`, `max`, `sort` URL parameters. Sort values: `discount`, `price-asc`, `price-desc`, `popular`. Search accepts Vietnamese with or without accents. Filters combine, price bounds are inclusive. Invalid product IDs and unknown routes have recovery links.
 
-## Admin and monitoring demo
+## F03 dynamic catalog
+
+The `/products` catalog supports combined search, category, inclusive price bounds, campaign/status, availability and sorting. Search matches product IDs, names, categories and descriptions, accepts Vietnamese without accents, and requires every search term to match.
+
+State is shareable in URL parameters: `q`, `category`, `min`, `max`, `sort`, `status`, `campaignId`, `availability`, `page` and `pageSize`. Availability values are `in-stock` and `sold-out`; page sizes are 8 (default), 16 and 24. Changing a filter or page size returns to the first page. Invalid or out-of-range pages are normalized after loading.
+
+The refresh button reloads products and campaigns. Loading, retryable errors and empty results have separate states. In HTTP mode the catalog uses API data; filtering and pagination run in the browser over the downloaded list, so this is intended for the current lab catalog rather than a large server-paginated catalog.
+
+Run `npm test` for search/filter/pagination behavior tests and `npm run build` for TypeScript and production bundle checks.
+
+## Admin and monitoring behavior
 
 Open `/admin` to review the read-only Admin Dashboard and `/admin/monitoring` to open the observability view. Both pages are labelled as simulation data and do not connect to AWS, use AWS credentials, change stock, replay queue messages or edit orders.
 

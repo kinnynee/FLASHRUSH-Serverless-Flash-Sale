@@ -6,6 +6,15 @@ const base: Product = { productId: 'headphones', name: 'Tai nghe chống ồn', 
 const catalog = [base, { ...base, productId: 'keyboard', name: 'Bàn phím', category: 'Bàn phím', price: 500000, originalPrice: 1500000 }, { ...base, productId: 'premium', price: 3000000, originalPrice: 4000000, stock: 0 }];
 const filters = { query: '', category: '', minPrice: 0, maxPrice: Infinity, sort: 'discount' };
 describe('Product discovery', () => {
+  it('searches product IDs and unordered accent-insensitive terms', () => {
+    expect(filterProducts(catalog, { ...filters, query: 'keyboard' }).map(p => p.productId)).toEqual(['keyboard']);
+    expect(filterProducts(catalog, { ...filters, query: 'ON TAI' }).length).toBe(2);
+  });
+  it('combines stock filters with search and price', () => {
+    expect(filterProducts(catalog, { ...filters, query: 'tai nghe', availability: 'in-stock' }).map(p => p.productId)).toEqual(['headphones']);
+    expect(filterProducts(catalog, { ...filters, availability: 'sold-out' }).map(p => p.productId)).toEqual(['premium']);
+    expect(filterProducts(catalog, { ...filters, availability: 'sold-out', maxPrice: 1000000 })).toEqual([]);
+  });
   it('combines accent-insensitive search, category and inclusive price range', () => {
     expect(filterProducts(catalog, { ...filters, query: 'TAI NGHE CHONG ON', category: 'Tai nghe', minPrice: 1000000, maxPrice: 1000000 }).map(p => p.productId)).toEqual(['headphones']);
   });

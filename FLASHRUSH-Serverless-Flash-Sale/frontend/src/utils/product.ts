@@ -7,10 +7,17 @@ export const remainingSeconds = (target: string, now = Date.now()) => Math.max(0
 export const clampQuantity = (quantity: number, stock: number) => stock < 1 ? 0 : Math.min(stock, Math.max(1, Math.floor(quantity) || 1));
 export const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
 
-export interface ProductFilters { query: string; category: string; minPrice: number; maxPrice: number; sort: string; }
+export interface ProductFilters { query: string; category: string; minPrice: number; maxPrice: number; sort: string; availability?: string; }
 export function filterProducts(products: Product[], filters: ProductFilters) {
-  const result = products.filter(p => normalize(p.name).includes(normalize(filters.query)) && (!filters.category || p.category === filters.category) && p.price >= filters.minPrice && p.price <= filters.maxPrice);
-  return result.sort((a, b) => filters.sort === 'price-asc' ? a.price - b.price : filters.sort === 'price-desc' ? b.price - a.price : filters.sort === 'popular' ? soldPercent(b) - soldPercent(a) : discountPercent(b) - discountPercent(a));
+  const terms = normalize(filters.query).split(/\s+/).filter(Boolean);
+  const result = products.filter(p => {
+    const searchable = normalize(`${p.productId} ${p.name} ${p.category} ${p.description}`);
+    return terms.every(term => searchable.includes(term)) && (!filters.category || p.category === filters.category)
+      && p.price >= filters.minPrice && p.price <= filters.maxPrice
+      && (filters.availability !== 'in-stock' || p.stock > 0)
+      && (filters.availability !== 'sold-out' || p.stock === 0);
+  });
+  return result.sort((a, b) => (filters.sort === 'price-asc' ? a.price - b.price : filters.sort === 'price-desc' ? b.price - a.price : filters.sort === 'popular' ? soldPercent(b) - soldPercent(a) : discountPercent(b) - discountPercent(a)) || a.productId.localeCompare(b.productId));
 }
 export function checkoutUrl(intent: CheckoutIntent) {
   const params = new URLSearchParams({ productId: intent.productId, quantity: String(intent.quantity) });
