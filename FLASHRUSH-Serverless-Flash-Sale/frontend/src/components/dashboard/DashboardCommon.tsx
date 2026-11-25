@@ -1,4 +1,4 @@
-import { Ban, CircleAlert, CircleCheck, ClipboardList } from 'lucide-react';
+import { Ban, CircleAlert, CircleCheck, ClipboardList, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { DashboardSnapshot, OrderMetrics } from '../../types/dashboard';
 import { Button } from '../common/Button';
@@ -25,7 +25,7 @@ const metrics = [
   { key: 'failed', admin: 'Đơn xử lý lỗi', monitoring: 'Đơn xử lý thất bại', tone: 'red', icon: CircleAlert, label: 'FAILED', note: 'Đơn có lỗi xử lý' },
 ] as const;
 
-export function OrderMetricsOverview({ orders, monitoring = false }: { orders: OrderMetrics; monitoring?: boolean }) {
+export function OrderMetricsOverview({ orders, monitoring = false, revenue, successRate }: { orders: OrderMetrics; monitoring?: boolean; revenue?: number; successRate?: number }) {
   return (
     <section aria-label="Tổng quan xử lý đơn hàng">
       {monitoring && <div className="dash-section-heading dash-plain-heading"><h2><ClipboardList size={18} /> Tổng quan xử lý đơn hàng</h2><span>Thời gian thực</span></div>}
@@ -41,6 +41,10 @@ export function OrderMetricsOverview({ orders, monitoring = false }: { orders: O
           </article>
         ))}
       </div>
+      {!monitoring && <div className="dash-kpis dash-admin-financial-kpis">
+        <article className="dash-card dash-kpi dash-green"><div className="dash-kpi-top"><h3>Doanh thu xác nhận</h3><span className="dash-icon"><Wallet size={19} /></span></div><strong className="dash-kpi-value">{new Intl.NumberFormat('vi-VN').format(revenue || 0)} ₫</strong><p>Tổng giá trị đơn đã xác nhận</p></article>
+        <article className="dash-card dash-kpi dash-blue"><div className="dash-kpi-top"><h3>Tỷ lệ thành công</h3><span className="dash-icon"><CircleCheck size={19} /></span></div><strong className="dash-kpi-value">{(successRate || 0).toFixed(1)}%</strong><p>Đơn CONFIRMED trên tổng đơn</p></article>
+      </div>}
       {(orders.pending > 0 || orders.processing > 0) && (
         <p className="dash-note dash-blue">Đơn chưa hoàn tất · <strong>{orders.pending}</strong> đang chờ xác nhận · <strong>{orders.processing}</strong> đang xử lý</p>
       )}

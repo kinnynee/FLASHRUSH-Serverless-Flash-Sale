@@ -1,6 +1,7 @@
 import { getScenarioOrders, scenarioTelemetry, sessionProducts, snapshotTime } from '../mocks/dashboardMockData';
-import type { DashboardAlert, OrderMetrics } from '../types/dashboard';
+import type { AdminOrdersPage, DashboardAlert, OrderMetrics } from '../types/dashboard';
 import type { OrderStatus } from '../types/order';
+import type { Product } from '../types/product';
 import type { DashboardService } from './dashboardService';
 
 const metricByStatus: Record<OrderStatus, Exclude<keyof OrderMetrics, 'accepted'>> = {
@@ -48,6 +49,18 @@ export const mockDashboardService: DashboardService = {
     return structuredClone({
       source: 'MOCK', sessionId: { warning: 'DEMO-01', healthy: 'DEMO-02', empty: 'DEMO-03' }[scenario], updatedAt: snapshotTime,
       orders, orderRecords, products, sqs, lambda, alerts,
+      totalRevenue: orderRecords.filter(order => order.status === 'CONFIRMED').reduce((sum, order) => sum + order.item.unitPrice * order.item.quantity, 0),
+      successRate: orderRecords.length ? orders.confirmed * 100 / orderRecords.length : 0,
+      lowStockProducts: products.filter(product => product.stock > 0 && product.stock <= 5),
     });
   },
+  async getAdminOrders(status, cursor, limit = 25): Promise<AdminOrdersPage> {
+    const snapshot = await this.getDashboardSnapshot();
+    let items = status ? snapshot.orderRecords.filter(order => order.status === status) : snapshot.orderRecords;
+    const start = cursor ? Number(cursor) || 0 : 0;
+    const page = items.slice(start, start + limit);
+    return { items: page, nextCursor: start + limit < items.length ? String(start + limit) : null };
+  },
+  async createProduct(_product: Product): Promise<Product> { throw new Error('Tạo sản phẩm yêu cầu kết nối API quản trị.'); },
+  async updateProduct(_productId: string, _changes: Partial<Product>, _stockDelta?: number): Promise<Product> { throw new Error('Cập nhật sản phẩm yêu cầu kết nối API quản trị.'); },
 };

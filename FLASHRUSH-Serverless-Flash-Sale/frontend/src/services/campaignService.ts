@@ -2,6 +2,7 @@ import { products } from '../mocks/products';
 import type { Campaign, CampaignInput, CampaignStatus } from '../types/campaign';
 import { syncServerTime } from '../utils/serverClock';
 import { getServerNow } from '../utils/serverClock';
+import { adminHeaders } from './adminAuth';
 
 export interface CampaignService {
   getCampaigns(): Promise<Campaign[]>;
@@ -61,7 +62,7 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new Error('Chưa cấu hình API chiến dịch.');
   const response = await fetch(`${base.replace(/\/$/, '')}${path}`, {
-    ...init, headers: { 'Content-Type': 'application/json', ...init?.headers }, signal: AbortSignal.timeout(10000),
+    ...init, headers: { 'Content-Type': 'application/json', ...adminHeaders(), ...init?.headers }, signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { code?: string } } | undefined;
