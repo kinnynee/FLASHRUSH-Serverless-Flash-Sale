@@ -124,6 +124,15 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(body['error']['code'], 'SALE_NOT_ACTIVE')
         self.assertEqual(self.app.orders.scan()['Count'], 0)
 
+    def test_upcoming_product_without_campaign_returns_not_active(self):
+        start = datetime.now(timezone.utc) + timedelta(hours=1)
+        self.app.products.put_item(Item={'productId': 'upcoming', 'stock': 5,
+            'saleStartsAt': start.isoformat(), 'saleEndsAt': (start + timedelta(hours=1)).isoformat()})
+        _, result, body = self.post(payload={'productId': 'upcoming', 'quantity': 1})
+        self.assertEqual(result['statusCode'], 409)
+        self.assertEqual(body['error']['code'], 'SALE_NOT_ACTIVE')
+        self.assertEqual(self.app.orders.scan()['Count'], 0)
+
     def test_catalog_payloads_include_server_authoritative_sale_window(self):
         result, listing = self.request('GET', '/products')
         self.assertEqual(result['statusCode'], 200)
