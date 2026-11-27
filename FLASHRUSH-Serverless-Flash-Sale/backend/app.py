@@ -113,10 +113,15 @@ def public_product(item, current=None, campaign_items=None):
     matches = [campaign for campaign in campaign_items
                if item['productId'] in campaign.get('productIds', [])]
     if matches:
-        # Prefer the live window, otherwise the next sale, then the most recent one.
-        matches.sort(key=lambda campaign: (campaign_status(campaign, current) != 'ACTIVE',
-                                            parse_time(campaign['startTime'])))
-        sale = matches[0]
+        # Keep the earliest live window; break ties independently of DynamoDB scan order.
+        def priority(campaign):
+            status = campaign_status(campaign, current)
+            rank = {'ACTIVE': 0, 'UPCOMING': 1, 'ENDED': 2}[status]
+            time = (-parse_time(campaign['endTime']).timestamp() if status == 'ENDED'
+                    else parse_time(campaign['startTime']).timestamp())
+            return rank, time, campaign['campaignId']
+
+        sale = min(matches, key=priority)
         start, end = sale['startTime'], sale['endTime']
     else:
         start = item.get('saleStartsAt', item.get('saleEndsAt'))

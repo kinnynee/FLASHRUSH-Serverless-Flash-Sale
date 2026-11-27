@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "target": {
+    "ApiUrl": "https://7h0r2fxsha.execute-api.us-east-1.amazonaws.com",
+    "ProductsTable": "flashrush-lab-products",
+    "CampaignsTable": "flashrush-lab-campaigns"
+  },
+  "timezone": "Asia/Bangkok (UTC+07:00; same offset as Vietnam)",
+  "dateEvidence": {
+    "tet": "2027-02-06",
+    "source": "https://www.officeholidays.com/holidays/vietnam/tet-nguyen-dan",
+    "checkedOn": "2026-11-27",
+    "blackFriday": "2027-11-26",
+    "cyberMonday": "2027-11-29"
+  },
+  "campaigns": [
+    {
+      "campaignId": "shop-weekend-20261205",
+      "name": "Cuối Tuần - Giá Tốt Thảnh Thơi",
+      "description": "Chọn bàn phím và chuột phù hợp cho góc làm việc cuối tuần.",
+      "startTime": "2026-12-05T08:00:00+07:00",
+      "endTime": "2026-12-05T22:00:00+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-audio-20261206",
+      "name": "Đại Tiệc Âm Thanh - Tai Nghe Giá Tốt",
+      "description": "Khám phá tai nghe cho giờ làm việc, di chuyển và thư giãn.",
+      "startTime": "2026-12-06T08:00:00+07:00",
+      "endTime": "2026-12-06T22:00:00+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-morning-20261207",
+      "name": "Deal Sáng - Khởi Động Ngày Mới",
+      "description": "Gợi ý phụ kiện công nghệ cho một ngày làm việc thuận tiện.",
+      "startTime": "2026-12-07T07:00:00+07:00",
+      "endTime": "2026-12-07T09:00:00+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-noon-20261207",
+      "name": "Sale Giờ Trưa - Chốt Deal Nhanh",
+      "description": "Dành giờ nghỉ trưa để lựa chọn tai nghe yêu thích.",
+      "startTime": "2026-12-07T11:00:00+07:00",
+      "endTime": "2026-12-07T13:00:00+07:00",
+      "productIds": [
+        "wireless-earbuds",
+        "headphones-studio"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-evening-20261208",
+      "name": "Giờ Vàng Buổi Tối - Săn Deal Cực Đã",
+      "description": "Khám phá điện thoại và laptop cho học tập, làm việc.",
+      "startTime": "2026-12-08T20:00:00+07:00",
+      "endTime": "2026-12-08T22:00:00+07:00",
+      "productIds": [
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-midnight-20261209",
+      "name": "Flash Sale Nửa Đêm - Thức Cùng Deal Hot",
+      "description": "Lựa chọn bàn phím và chuột gaming trong khung giờ nửa đêm.",
+      "startTime": "2026-12-09T00:00:00+07:00",
+      "endTime": "2026-12-09T02:00:00+07:00",
+      "productIds": [
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-12-12-2026",
+      "name": "Siêu Sale 12.12 - Đại Tiệc Cuối Năm",
+      "description": "Ngày hội lựa chọn thiết bị và phụ kiện công nghệ cuối năm.",
+      "startTime": "2026-12-12T00:00:00+07:00",
+      "endTime": "2026-12-12T23:59:59+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro",
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-midmonth-20261215",
+      "name": "Giữa Tháng - Deal Ngon Đang Đợi",
+      "description": "Lựa chọn phụ kiện nhỏ gọn phục vụ công việc mỗi ngày.",
+      "startTime": "2026-12-15T08:00:00+07:00",
+      "endTime": "2026-12-15T22:00:00+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-gifts-20261220",
+      "name": "Quà Tặng Yêu Thương - Trao Điều Ý Nghĩa",
+      "description": "Gợi ý sản phẩm để bạn chọn mua làm quà cho người thân; không phải chương trình tặng quà miễn phí.",
+      "startTime": "2026-12-20T08:00:00+07:00",
+      "endTime": "2026-12-20T22:00:00+07:00",
+      "productIds": [
+        "wireless-earbuds",
+        "headphones-studio",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-christmas-2026",
+      "name": "Mừng Giáng Sinh - Quà Xinh Giá Hời",
+      "description": "Chọn mua tai nghe và đồng hồ làm quà trong mùa Giáng Sinh.",
+      "startTime": "2026-12-24T00:00:00+07:00",
+      "endTime": "2026-12-25T23:59:59+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-payday-20261225",
+      "name": "Lương Về - Chốt Deal Mê Ly",
+      "description": "Nâng cấp bàn phím và chuột trong dịp mua sắm cuối tháng.",
+      "startTime": "2026-12-25T08:00:00+07:00",
+      "endTime": "2026-12-25T22:00:00+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-monthend-20261229",
+      "name": "Cuối Tháng - Săn Giá Hời",
+      "description": "Khám phá điện thoại và laptop phù hợp nhu cầu của bạn.",
+      "startTime": "2026-12-29T08:00:00+07:00",
+      "endTime": "2026-12-29T22:00:00+07:00",
+      "productIds": [
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-newyear-2027",
+      "name": "Chào Năm Mới - Rộn Ràng Sắm Mới",
+      "description": "Chọn thiết bị đồng hành cùng những dự định trong năm mới.",
+      "startTime": "2026-12-31T08:00:00+07:00",
+      "endTime": "2026-12-31T23:59:59+07:00",
+      "productIds": [
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-01-01-2027",
+      "name": "Sale 1.1 - Khởi Đầu Hứng Khởi",
+      "description": "Mở đầu năm mới với bộ sưu tập phụ kiện công nghệ quen thuộc.",
+      "startTime": "2027-01-01T00:00:00+07:00",
+      "endTime": "2027-01-01T23:59:59+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-tet-2027",
+      "name": "Tết Sale - Sắm Tết Thả Ga",
+      "description": "Lựa chọn tai nghe và đồng hồ trước Tết Đinh Mùi, mùng Một ngày 06/02/2027.",
+      "startTime": "2027-01-30T08:00:00+07:00",
+      "endTime": "2027-02-05T22:00:00+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-02-02-2027",
+      "name": "Sale 2.2 - Deal Đôi Rộn Ràng",
+      "description": "Ngày mua sắm bàn phím và chuột cho góc làm việc đầu năm.",
+      "startTime": "2027-02-02T00:00:00+07:00",
+      "endTime": "2027-02-02T23:59:59+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-spring-2027",
+      "name": "Đón Xuân - Khai Xuân Săn Deal",
+      "description": "Khai xuân Đinh Mùi với những thiết bị công nghệ dành cho năm mới.",
+      "startTime": "2027-02-06T08:00:00+07:00",
+      "endTime": "2027-02-10T22:00:00+07:00",
+      "productIds": [
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-03-03-2027",
+      "name": "Sale 3.3 - Thỏa Sức Mua Sắm",
+      "description": "Khám phá tai nghe và phụ kiện cho nhu cầu thường ngày.",
+      "startTime": "2027-03-03T00:00:00+07:00",
+      "endTime": "2027-03-03T23:59:59+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-black-friday-2027",
+      "name": "Black Friday - Săn Deal Bùng Nổ",
+      "description": "Ngày hội mua sắm công nghệ Black Friday, thứ Sáu sau Lễ Tạ ơn.",
+      "startTime": "2027-11-26T00:00:00+07:00",
+      "endTime": "2027-11-26T23:59:59+07:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "wireless-earbuds",
+        "headphones-studio",
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro",
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "shop-cyber-monday-2027",
+      "name": "Cyber Monday - Đại Hội Công Nghệ",
+      "description": "Khám phá điện thoại, laptop và phụ kiện vào thứ Hai sau Black Friday.",
+      "startTime": "2027-11-29T00:00:00+07:00",
+      "endTime": "2027-11-29T23:59:59+07:00",
+      "productIds": [
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "rgb-keyboard-k88",
+        "gaming-mouse-pro",
+        "iphone-15",
+        "macbook-air-m2",
+        "laptop-work-pro",
+        "apple-watch-series-9"
+      ],
+      "maxQtyPerOrder": 1
+    }
+  ]
+}

@@ -190,6 +190,55 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.app.read_order(order['orderId'])['status'], 'CONFIRMED')
         self.assertEqual(self.app.products.get_item(Key={'productId': 'sku'})['Item']['stock'], 8)
 
+    def test_product_selects_live_then_nearest_upcoming_then_latest_end(self):
+        current = datetime(2026, 12, 3, 5, tzinfo=timezone.utc)
+        def campaign(cid, start, end):
+            return {'campaignId': cid, 'productIds': ['sku'],
+                    'startTime': (current + timedelta(days=start)).isoformat(),
+                    'endTime': (current + timedelta(days=end)).isoformat()}
+        old = campaign('old', -10, -5)
+        recent = campaign('recent', -20, -1)
+        next_sale = campaign('next', 2, 3)
+        later = campaign('later', 4, 5)
+        live = campaign('live', -1, 1)
+        product = {'productId': 'sku', 'stock': 1}
+        for items, expected, status in [
+                ([old, later, recent, next_sale], next_sale, 'UPCOMING'),
+                ([old, recent], recent, 'ENDED'),
+                ([next_sale, old, live, later], live, 'LIVE')]:
+            for ordering in (items, list(reversed(items))):
+                with self.subTest(status=status, ordering=[c['campaignId'] for c in ordering]):
+                    public = self.app.public_product(product, current, ordering)
+                    self.assertEqual(public['saleStatus'], status)
+                    self.assertEqual(public['saleStartsAt'], expected['startTime'])
+                    self.assertEqual(public['saleEndsAt'], expected['endTime'])
+
+    def test_campaign_selection_boundaries_and_sold_out(self):
+        start = datetime(2026, 12, 5, 1, tzinfo=timezone.utc)
+        end = start + timedelta(hours=2)
+        sale = {'campaignId': 'sale', 'productIds': ['sku'],
+                'startTime': start.isoformat(), 'endTime': end.isoformat()}
+        product = {'productId': 'sku', 'stock': 1}
+        for at, expected in [(start - timedelta(microseconds=1), 'UPCOMING'),
+                             (start, 'LIVE'), (end, 'LIVE'),
+                             (end + timedelta(microseconds=1), 'ENDED')]:
+            self.assertEqual(self.app.public_product(product, at, [sale])['saleStatus'], expected)
+        product['stock'] = 0
+        self.assertEqual(self.app.public_product(product, start, [sale])['saleStatus'], 'SOLD_OUT')
+
+    def test_campaign_selection_ties_and_no_matching_campaign(self):
+        current = datetime(2026, 12, 3, 5, tzinfo=timezone.utc)
+        first = {'campaignId': 'a', 'productIds': ['sku'],
+                 'startTime': (current - timedelta(hours=1)).isoformat(),
+                 'endTime': (current + timedelta(hours=1)).isoformat()}
+        second = {**first, 'campaignId': 'b', 'endTime': (current + timedelta(hours=2)).isoformat()}
+        product = {'productId': 'sku', 'stock': 1,
+                   'saleStartsAt': first['startTime'], 'saleEndsAt': second['endTime']}
+        for ordering in ([first, second], [second, first]):
+            self.assertEqual(self.app.public_product(product, current, ordering)['saleEndsAt'], first['endTime'])
+        unrelated = {**first, 'productIds': ['another-product']}
+        self.assertEqual(self.app.public_product(product, current, [unrelated])['saleEndsAt'], second['endTime'])
+
     def test_campaign_api_create_patch_and_read(self):
         start = datetime.now(timezone.utc) + timedelta(days=1)
         payload = {'name': 'Tomorrow', 'startTime': start.isoformat(),
