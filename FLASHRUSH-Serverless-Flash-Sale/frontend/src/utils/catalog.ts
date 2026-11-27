@@ -6,7 +6,7 @@ export function paginate<T>(
   requestedSize: string | null,
 ) {
   const size = Number(requestedSize);
-  const pageSize = PAGE_SIZES.find((value) => value === size) ?? 12;
+  const pageSize = PAGE_SIZES.find((value) => value === size) ?? 8;
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const parsed = Number(requestedPage);
   const page =

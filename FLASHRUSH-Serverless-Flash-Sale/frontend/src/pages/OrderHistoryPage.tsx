@@ -24,13 +24,11 @@ const filters: { label: string; value: OrderStatus | "ALL" }[] = [
 ];
 export function OrderHistoryPage() {
   const [filter, setFilter] = useState<OrderStatus | "ALL">("ALL");
-  const [query, setQuery] = useState("");
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [synced, setSynced] = useState<string[]>([]);
-  const [lastChecked, setLastChecked] = useState<number>();
   const access = getAccess();
   const pendingIntent = getIntent();
   useEffect(() => {
@@ -57,7 +55,6 @@ export function OrderHistoryPage() {
               : [],
           ),
         );
-        setLastChecked(Date.now());
         setOrders(
           results.map((result, index) =>
             result.status === "fulfilled" ? result.value : local[index],
@@ -95,26 +92,15 @@ export function OrderHistoryPage() {
     );
   const shown = orders.filter(
     (o) =>
-      (filter === "ALL" ||
-        o.status === filter ||
-        (filter === "PENDING" && o.status === "PROCESSING")) &&
-      `${o.orderId} ${o.item.name}`
-        .toLowerCase()
-        .includes(query.trim().toLowerCase()),
+      filter === "ALL" ||
+      o.status === filter ||
+      (filter === "PENDING" && o.status === "PROCESSING"),
   );
   return (
     <div className="container order-history">
       <section className="order-panel history-title">
         <h1>Đơn hàng của tôi</h1>
-        <p>
-          Lịch sử trên trình duyệt này. Mở chi tiết đơn để tự động theo dõi tiến
-          trình.
-        </p>
-        <p>
-          {orders.length} yêu cầu ·{" "}
-          {orders.filter((o) => o.status === "CONFIRMED").length} xác nhận gần
-          nhất
-        </p>
+        <p>{orders.length} đơn hàng</p>
         <Button
           variant="secondary"
           disabled={loading}
@@ -122,12 +108,6 @@ export function OrderHistoryPage() {
         >
           {loading ? "Đang cập nhật..." : "Cập nhật trạng thái"}
         </Button>
-        {lastChecked && (
-          <p>
-            Lần kiểm tra gần nhất:{" "}
-            {new Date(lastChecked).toLocaleTimeString("vi-VN")}
-          </p>
-        )}
       </section>
       {error && (
         <p className="order-error" role="alert">
@@ -162,16 +142,10 @@ export function OrderHistoryPage() {
             </button>
           ))}
         </div>
-        <input
-          aria-label="Tìm theo mã đơn hoặc tên sản phẩm"
-          placeholder="Tìm theo mã đơn hoặc tên sản phẩm..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
       </div>
       {shown.length === 0 && (
-        <EmptyState title={orders.length ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng nào'} description={orders.length ? 'Thử mã đơn, tên sản phẩm hoặc trạng thái khác.' : 'Khám phá các đợt Flash Sale và chọn sản phẩm yêu thích.'}>
-          {orders.length ? <Button onClick={() => { setFilter('ALL'); setQuery(''); }}>Xóa bộ lọc</Button> : <Link className="button button-primary" to="/products?status=ALL">Khám phá Flash Sale</Link>}
+        <EmptyState title={orders.length ? 'Không có đơn ở trạng thái này' : 'Bạn chưa có đơn hàng nào'} description={orders.length ? 'Chọn trạng thái khác để xem các đơn hàng còn lại.' : 'Khám phá các đợt Flash Sale và chọn sản phẩm yêu thích.'}>
+          {orders.length ? <Button onClick={() => setFilter('ALL')}>Xóa bộ lọc</Button> : <Link className="button button-primary" to="/products?status=ALL">Khám phá Flash Sale</Link>}
         </EmptyState>
       )}
       {shown.map((order) => (

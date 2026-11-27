@@ -31,7 +31,7 @@ export function SearchBar() {
       </button>
       <input
         aria-label="Tìm kiếm sản phẩm"
-        placeholder="Tìm kiếm sản phẩm Flash Sale…"
+        placeholder="Tìm kiếm sản phẩm"
         value={value}
         onChange={(event) => setValue(event.target.value)}
       />
