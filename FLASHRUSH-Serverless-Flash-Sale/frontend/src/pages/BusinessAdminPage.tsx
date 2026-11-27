@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { Search } from "lucide-react";
 import { AdminTopbar } from "../components/admin/AdminTopbar";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { businessRequest } from "../services/accountService";
+import { adminErrorMessage } from "../services/adminAuth";
+import { AdminPageHeader, AdminRefreshButton } from "../components/admin/AdminPageHeader";
 interface Person {
   id: string;
   username: string;
@@ -79,7 +83,7 @@ export function BusinessAdminPage({
         setCursor(data.nextCursor);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không thể tải dữ liệu");
+      setError(adminErrorMessage(e, "Không thể tải dữ liệu"));
     } finally {
       setBusy(false);
     }
@@ -123,7 +127,7 @@ export function BusinessAdminPage({
       await load();
     } catch (e) {
       setError(
-        `${e instanceof Error ? e.message : "Lỗi"}. Giữ nguyên yêu cầu khi thử lại.`,
+        `${adminErrorMessage(e, "Lỗi")}. Giữ nguyên yêu cầu khi thử lại.`,
       );
     } finally {
       setBusy(false);
@@ -138,7 +142,7 @@ export function BusinessAdminPage({
       setName("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không thể mời");
+      setError(adminErrorMessage(e, "Không thể mời"));
     } finally {
       setBusy(false);
     }
@@ -152,7 +156,7 @@ export function BusinessAdminPage({
       });
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không thể cập nhật");
+      setError(adminErrorMessage(e, "Không thể cập nhật"));
     } finally {
       setBusy(false);
     }
@@ -162,40 +166,27 @@ export function BusinessAdminPage({
     users: "Nhân viên và phân quyền",
     inventory: "Tồn kho",
   };
+  const visiblePeople = people.filter((person) => `${person.name} ${person.email}`.toLowerCase().includes(query.toLowerCase()));
+  const visibleStocks = stocks.filter((stock) => `${stock.name} ${stock.productId}`.toLowerCase().includes(query.toLowerCase()));
   return (
     <>
       <AdminTopbar />
       <div className="dash-admin">
         <AdminSidebar />
         <main id="main-content" className="dash-admin-main">
-          <header className="dash-admin-header">
-            <h1>{titles[section]}</h1>
-            <button
-              className="button button-secondary"
-              onClick={() => load()}
-              disabled={busy}
-            >
-              Làm mới
-            </button>
-          </header>
+          <AdminPageHeader title={titles[section]} description={section === "inventory" ? "Theo dõi số lượng và điều chỉnh tồn kho an toàn." : section === "customers" ? "Quản lý thông tin và trạng thái khách hàng." : "Quản lý nhân viên và phân quyền truy cập."} actions={<AdminRefreshButton onClick={() => void load()} disabled={busy} />} />
           <div className="dash-admin-body dash-stack">
             {error && (
-              <p role="alert" className="order-error">
-                {error}
-              </p>
+              <div role="alert" className="order-error">
+                <span>{error}</span>
+                <Link className="dash-text-link" to="/admin/monitoring">Mở Giám sát để kiểm tra API Key</Link>
+              </div>
             )}
             {busy && <p role="status">Đang xử lý...</p>}
-            <label>
-              Tìm kiếm
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tên, email hoặc mã sản phẩm"
-              />
-            </label>
+            <div className="admin-search-toolbar"><label htmlFor="admin-search"><span>Tìm kiếm</span><span className="admin-search-input"><Search size={16} aria-hidden="true" /><input id="admin-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={section === "customers" ? "Tìm tên hoặc email khách hàng" : section === "users" ? "Tìm tên hoặc email nhân viên" : "Tìm tên hoặc mã SKU sản phẩm"} /></span></label></div>
             {section === "inventory" ? (
               <>
-                <section className="dash-card business-table inventory-table"><table><thead><tr><th scope="col">Sản phẩm</th><th scope="col">Mã SKU</th><th scope="col">Tồn kho</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody>{stocks.filter(s=>`${s.name} ${s.productId}`.toLowerCase().includes(query.toLowerCase())).map(s=><tr key={s.productId}><th scope="row">{s.name}</th><td>{s.productId}</td><td className="stock-number">{s.stock.toLocaleString('vi-VN')}</td><td><span className={`stock-label ${s.stock===0?'is-empty':s.stock<=5?'is-low':''}`}>{s.stock===0?'Hết hàng':s.stock<=5?'Sắp hết':'Còn hàng'}</span></td><td><button className="text-link" disabled={busy||!!pending.current} onClick={()=>{setPid(s.productId);document.getElementById('inventory-adjustment')?.scrollIntoView({behavior:'smooth',block:'center'});}}>Điều chỉnh</button></td></tr>)}</tbody></table>{!stocks.length&&!busy&&<p>Chưa có sản phẩm.</p>}</section>
+                <section className="dash-card business-table inventory-table"><table><thead><tr><th scope="col">Sản phẩm</th><th scope="col">Mã SKU</th><th scope="col">Tồn kho</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody>{visibleStocks.length ? visibleStocks.map(s=><tr key={s.productId}><th scope="row">{s.name}</th><td>{s.productId}</td><td className="stock-number">{s.stock.toLocaleString('vi-VN')}</td><td><span className={`stock-label ${s.stock===0?'is-empty':s.stock<=5?'is-low':''}`}>{s.stock===0?'Hết hàng':s.stock<=5?'Sắp hết':'Còn hàng'}</span></td><td><button className="text-link" disabled={busy||!!pending.current} onClick={()=>{setPid(s.productId);document.getElementById('inventory-adjustment')?.scrollIntoView({behavior:'smooth',block:'center'});}}>Điều chỉnh</button></td></tr>) : !busy && <tr><td colSpan={5}><div className="empty-state"><p>Chưa có sản phẩm phù hợp.</p><span className="dash-note">Hãy đồng bộ catalog để bắt đầu quản lý tồn kho.</span></div></td></tr>}</tbody></table></section>
                 <form id="inventory-adjustment" className="dash-card account-form" onSubmit={adjust}>
                   <h2>Nhập / xuất điều chỉnh</h2>
                   <label>
@@ -275,7 +266,7 @@ export function BusinessAdminPage({
                         ))}
                       </tbody>
                     </table>
-                    {!movements.length && <p>Chưa có điều chỉnh.</p>}
+                  {!movements.length && <div className="empty-state"><p>Chưa có điều chỉnh.</p></div>}
                   </div>
                 </section>
               </>
@@ -333,13 +324,7 @@ export function BusinessAdminPage({
                       </tr>
                     </thead>
                     <tbody>
-                      {people
-                        .filter((p) =>
-                          `${p.name} ${p.email}`
-                            .toLowerCase()
-                            .includes(query.toLowerCase()),
-                        )
-                        .map((p) => (
+                      {visiblePeople.length ? visiblePeople.map((p) => (
                           <tr key={p.id}>
                             <td>
                               {p.name || "Chưa cập nhật"}
@@ -365,11 +350,7 @@ export function BusinessAdminPage({
                                       );
                                       await load();
                                     } catch (e) {
-                                      setError(
-                                        e instanceof Error
-                                          ? e.message
-                                          : "Không thể cập nhật",
-                                      );
+                                      setError(adminErrorMessage(e, "Không thể cập nhật"));
                                     } finally {
                                       setBusy(false);
                                     }
@@ -381,7 +362,9 @@ export function BusinessAdminPage({
                             </td>
                             <td>{p.email}</td>
                             <td>
-                              {p.enabled ? p.status || "Hoạt động" : "Đã khóa"}
+                              <span className={`stock-label ${p.enabled ? "" : "is-empty"}`}>
+                                {p.enabled ? p.status || "Hoạt động" : "Đã khóa"}
+                              </span>
                             </td>
                             {section === "users" && (
                               <>
@@ -429,10 +412,9 @@ export function BusinessAdminPage({
                               </>
                             )}
                           </tr>
-                        ))}
+                        )) : !busy && <tr><td colSpan={section === "users" ? 5 : 3}><div className="empty-state"><p>Chưa có tài khoản phù hợp.</p></div></td></tr>}
                     </tbody>
                   </table>
-                  {!people.length && !busy && <p>Chưa có tài khoản.</p>}
                   {cursor && (
                     <button
                       className="button button-secondary"

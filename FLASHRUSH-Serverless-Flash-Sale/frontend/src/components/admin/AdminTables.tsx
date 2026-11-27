@@ -10,6 +10,7 @@ import { EmptyState } from '../common/EmptyState';
 import { ProductImage } from '../common/ProductImage';
 import { OrderStatusBadge } from '../order/OrderStatusBadge';
 import { formatTime } from '../dashboard/DashboardCommon';
+import { AdminRefreshButton } from './AdminPageHeader';
 
 interface ProductDraft {
   productId: string; name: string; category: string; description: string; price: string;
@@ -63,7 +64,7 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
       <div className="dash-section-heading">
         <div><h2 id="dash-products">Sản phẩm Flash Sale</h2></div>
         <div className="dash-table-actions"><span>{products.length} mặt hàng</span>
-          <button type="button" className="dash-text-link" onClick={() => { onRefresh?.(); }}>Làm mới</button>
+          <AdminRefreshButton onClick={() => { onRefresh?.(); }} />
           <button type="button" className="button button-primary" onClick={() => begin()}>Thêm sản phẩm</button></div>
       </div>
       {message && <p role="status" className="dash-success-message">{message}</p>}{failure && <p role="alert" className="campaign-error">{failure}</p>}
@@ -83,14 +84,11 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
         </div>
         <div className="dash-product-form-actions"><button className="button button-primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu sản phẩm'}</button><button type="button" className="button button-secondary" onClick={() => setOpen(false)}>Hủy</button></div>
       </form>}
-      {products.length === 0 ? (
-        <EmptyState title="Chưa có sản phẩm" description="Hiện tại chưa có mặt hàng nào." />
-      ) : (
-        <div className="dash-scroll-table" role="region" aria-labelledby="dash-products" tabIndex={0}>
+      <div className="dash-scroll-table" role="region" aria-labelledby="dash-products" tabIndex={0}>
           <table>
             <thead><tr><th scope="col">Hình ảnh</th><th scope="col">Tên sản phẩm</th><th scope="col">Mã sản phẩm</th><th scope="col">Giá bán (VND)</th><th scope="col">Tồn ban đầu</th><th scope="col">Tồn hiện tại</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
             <tbody>
-              {products.map(product => (
+              {products.length === 0 ? <tr><td colSpan={8}><EmptyState title="Chưa có sản phẩm" description="Hiện tại chưa có mặt hàng nào."><button type="button" className="button button-primary" onClick={() => begin()}>＋ Thêm sản phẩm</button></EmptyState></td></tr> : products.map(product => (
                 <tr key={product.productId}>
                   <td><ProductImage className="dash-product-image" src={product.images[0]} alt="" /></td>
                   <th scope="row">{product.name}<small>{product.category}</small></th>
@@ -108,7 +106,6 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
             </tbody>
           </table>
         </div>
-      )}
     </section>
   );
 }
@@ -148,7 +145,7 @@ export function AdminOrdersTable() {
   return <section className="dash-card dash-table-card" aria-labelledby="dash-admin-orders">
     <div className="dash-section-heading"><div><h2 id="dash-admin-orders">Đơn hàng</h2></div>
       <div className="dash-table-actions"><label className="admin-status-filter"><span className="sr-only">Lọc trạng thái đơn hàng</span><select aria-label="Lọc trạng thái đơn hàng" value={status} onChange={event => changeStatus(event.target.value)}><option value="">Tất cả</option>{['PENDING','PROCESSING','CONFIRMED','OUT_OF_STOCK','FAILED'].map(value => <option key={value} value={value}>{{PENDING:'Đang chờ',PROCESSING:'Đang xử lý',CONFIRMED:'Đã xác nhận',OUT_OF_STOCK:'Hết hàng',FAILED:'Thất bại'}[value]}</option>)}</select></label>
-        <button type="button" className="dash-text-link" disabled={loading} onClick={() => setVersion(value => value + 1)}>Làm mới</button></div>
+        <AdminRefreshButton disabled={loading} onClick={() => setVersion(value => value + 1)} /></div>
     </div>
     {error && <p className="campaign-error" role="alert">{error}</p>}{loading ? <p role="status">Đang tải đơn hàng...</p> : orders.length === 0 ? <EmptyState title="Chưa có đơn hàng" description="Không có đơn hàng phù hợp bộ lọc." /> :
       <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{formatPrice(order.item.totalAmount ?? order.totalAmount ?? order.item.unitPrice * order.item.quantity)}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
