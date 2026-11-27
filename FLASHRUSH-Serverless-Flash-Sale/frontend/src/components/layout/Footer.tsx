@@ -44,7 +44,7 @@ export function Footer() {
         <button aria-label="Đóng thông tin" onClick={() => setInfo('')}><X size={18} /></button>
       </section>}
       <div className="footer-bottom">
-        <p>© {new Date().getFullYear()} FLASHRUSH · Dự án mô phỏng</p>
+        <p>© {new Date().getFullYear()} FLASHRUSH</p>
         <nav aria-label="Chính sách">
           {infoButton('Điều khoản sử dụng')}
           {infoButton('Chính sách bảo mật')}

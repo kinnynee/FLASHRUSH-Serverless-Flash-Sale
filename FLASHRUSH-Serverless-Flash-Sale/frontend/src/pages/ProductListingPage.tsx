@@ -2,16 +2,10 @@ import { SaleSchedule } from '../components/product/SaleSchedule';
 import { catalogCategories, saleDeadline } from '../utils/storefront';
 import { normalize } from '../utils/product';
 import { Fragment, useEffect } from "react";
-import {
-  PAGE_SIZES,
-  paginate,
-  pageNumbers,
-  updateCatalogParams,
-} from "../utils/catalog";
+import { paginate, pageNumbers, updateCatalogParams } from "../utils/catalog";
 import {
   SlidersHorizontal,
   X,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -147,15 +141,6 @@ export function ProductListingPage() {
         <section className="filter-panel" aria-label="Bộ lọc sản phẩm">
           <div className="catalog-toolbar">
             <p>Tìm sản phẩm phù hợp với bạn</p>
-            <button
-              type="button"
-              className="catalog-refresh"
-              disabled={busy}
-              onClick={refresh}
-            >
-              <RefreshCw size={16} />
-              {busy ? "Đang tải…" : "Làm mới dữ liệu"}
-            </button>
           </div>
           <div className="campaign-filter">
             <span>Đợt Flash Sale:</span>
@@ -263,26 +248,6 @@ export function ProductListingPage() {
           </EmptyState>
         ) : filtered.length ? (
           <>
-            <div className="catalog-results-toolbar">
-              <p role="status">
-                Hiển thị {pagination.from}–{pagination.to} / {pagination.total}{" "}
-                sản phẩm
-              </p>
-              <label className="sort-label">
-                Mỗi trang:
-                <select
-                  aria-label="Số sản phẩm mỗi trang"
-                  value={pagination.pageSize}
-                  onChange={(event) => update("pageSize", event.target.value)}
-                >
-                  {PAGE_SIZES.map((size) => (
-                    <option key={size} value={size}>
-                      {size} sản phẩm
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
             <ProductGrid products={pagination.items} />
             <nav
               className="catalog-pagination"
