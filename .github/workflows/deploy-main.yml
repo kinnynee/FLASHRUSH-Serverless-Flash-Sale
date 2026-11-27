@@ -33,9 +33,11 @@ jobs:
       - run: npm audit --prefix frontend --audit-level=high
       - run: npm run build --prefix frontend
         env:
-          VITE_ORDER_MODE: http
-          VITE_API_BASE_URL: https://56l39g5pqk.execute-api.us-east-1.amazonaws.com
-          VITE_DEMO_SERVICE_ERROR: 'false'
+          VITE_ORDER_MODE: ${{ vars.VITE_ORDER_MODE }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_DEMO_SERVICE_ERROR: ${{ vars.VITE_DEMO_SERVICE_ERROR }}
+          VITE_COGNITO_REGION: ${{ vars.VITE_COGNITO_REGION }}
+          VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
