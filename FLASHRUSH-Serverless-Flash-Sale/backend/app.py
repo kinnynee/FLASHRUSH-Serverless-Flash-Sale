@@ -13,12 +13,19 @@ import time
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Any, Protocol, cast
 
 import boto3
 from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
-db = boto3.resource('dynamodb')
+class _DynamoDBResource(Protocol):
+    """The resource methods used here; boto3 creates table objects dynamically."""
+
+    def Table(self, name: str) -> Any: ...
+
+
+db = cast(_DynamoDBResource, boto3.resource('dynamodb'))
 products = db.Table(os.environ['PRODUCTS_TABLE'])
 orders = db.Table(os.environ['ORDERS_TABLE'])
 campaigns = db.Table(os.environ['CAMPAIGNS_TABLE'])
