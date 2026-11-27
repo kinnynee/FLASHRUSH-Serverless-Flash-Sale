@@ -1,0 +1,235 @@
+{
+  "capturedAt": "2026-11-27T05:11:03.450208+00:00",
+  "target": {
+    "ApiUrl": "https://7h0r2fxsha.execute-api.us-east-1.amazonaws.com",
+    "ProductsTable": "flashrush-lab-products",
+    "CampaignsTable": "flashrush-lab-campaigns"
+  },
+  "products": [
+    {
+      "productId": "portable-speaker",
+      "name": "Loa Bluetooth Portable Mini",
+      "category": "Phụ kiện công nghệ",
+      "stock": 0
+    },
+    {
+      "productId": "duplicate-test-d5e81c1c",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 1
+    },
+    {
+      "productId": "sony-wh-1000xm5",
+      "name": "Tai nghe Bluetooth chống ồn Sony WH-1000XM5",
+      "category": "Tai nghe",
+      "stock": 2
+    },
+    {
+      "productId": "load-test-81b71ad7",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 10
+    },
+    {
+      "productId": "sale-demo-20261125144104-earbuds",
+      "name": "Tai nghe Bluetooth Air Lite",
+      "category": "Tai nghe",
+      "stock": 22
+    },
+    {
+      "productId": "load-test-d5e81c1c",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 0
+    },
+    {
+      "productId": "load-test-9a558b4d",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 0
+    },
+    {
+      "productId": "duplicate-test-9a558b4d",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 0
+    },
+    {
+      "productId": "sale-demo-20261125144104-speaker",
+      "name": "Loa Bluetooth Mini",
+      "category": "Phu kien cong nghe",
+      "stock": 10
+    },
+    {
+      "productId": "inventory-api-check-4c8a73b2",
+      "name": "Kiểm thử API kho",
+      "category": "Lab",
+      "stock": 0
+    },
+    {
+      "productId": "wireless-earbuds",
+      "name": "Tai nghe không dây Sound Pro",
+      "category": "Tai nghe",
+      "stock": 5
+    },
+    {
+      "productId": "rgb-keyboard-k88",
+      "name": "Bàn phím cơ RGB K88",
+      "category": "Bàn phím",
+      "stock": 8
+    },
+    {
+      "productId": "apple-watch-series-9",
+      "name": "Apple Watch Series 9",
+      "category": "Phụ kiện công nghệ",
+      "stock": 6
+    },
+    {
+      "productId": "logitech-mx-master-3s",
+      "name": "Chuột Logitech MX Master 3S",
+      "category": "Chuột gaming",
+      "stock": 12
+    },
+    {
+      "productId": "sale-demo-20261125144104-keyboard",
+      "name": "Ban phim co K88 RGB",
+      "category": "Ban phim",
+      "stock": 17
+    },
+    {
+      "productId": "sale-demo-20261125144104-mouse",
+      "name": "Chuot Wireless Pro",
+      "category": "Chuot gaming",
+      "stock": 12
+    },
+    {
+      "productId": "gaming-mouse-pro",
+      "name": "Chuột Gaming Pro Wireless",
+      "category": "Chuột gaming",
+      "stock": 9
+    },
+    {
+      "productId": "iphone-15",
+      "name": "Điện thoại iPhone 15 128GB",
+      "category": "Điện thoại",
+      "stock": 7
+    },
+    {
+      "productId": "macbook-air-m2",
+      "name": "Laptop MacBook Air M2 13 inch",
+      "category": "Laptop",
+      "stock": 3
+    },
+    {
+      "productId": "headphones-studio",
+      "name": "Tai nghe Studio Wireless màu kem",
+      "category": "Tai nghe",
+      "stock": 10
+    },
+    {
+      "productId": "laptop-work-pro",
+      "name": "Laptop Work Pro 14 inch",
+      "category": "Laptop",
+      "stock": 5
+    },
+    {
+      "productId": "keychron-k2",
+      "name": "Bàn phím Keychron K2 Không Dây",
+      "category": "Bàn phím",
+      "stock": 4
+    },
+    {
+      "productId": "sale-demo-20261125144104-headphones",
+      "name": "Tai nghe Studio Wireless",
+      "category": "Tai nghe",
+      "stock": 11
+    },
+    {
+      "productId": "cw-demo-20261125143744",
+      "name": "CloudWatch demo - test orders only",
+      "category": "Monitoring Test",
+      "stock": 0
+    },
+    {
+      "productId": "duplicate-test-adcae4a2",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 1
+    },
+    {
+      "productId": "load-test-adcae4a2",
+      "name": "FLASHRUSH concurrency test",
+      "category": "Lab",
+      "stock": 0
+    }
+  ],
+  "campaigns": [
+    {
+      "campaignId": "flashrush-demo",
+      "name": "FLASHRUSH Demo",
+      "startTime": "2026-11-25T06:00:32.858534+00:00",
+      "endTime": "2026-12-02T06:01:32.858534+00:00",
+      "productIds": [
+        "sony-wh-1000xm5",
+        "keychron-k2",
+        "logitech-mx-master-3s",
+        "apple-watch-series-9",
+        "wireless-earbuds",
+        "rgb-keyboard-k88",
+        "iphone-15",
+        "macbook-air-m2",
+        "portable-speaker",
+        "gaming-mouse-pro",
+        "headphones-studio",
+        "laptop-work-pro"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "verification-9a558b4d",
+      "name": "Verification 9a558b4d",
+      "startTime": "2026-11-25T06:00:55.356798+00:00",
+      "endTime": "2026-11-28T06:01:55.356798+00:00",
+      "productIds": [
+        "load-test-9a558b4d",
+        "duplicate-test-9a558b4d"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "verification-d5e81c1c",
+      "name": "Verification d5e81c1c",
+      "startTime": "2026-11-25T06:01:58.826681+00:00",
+      "endTime": "2026-11-28T06:02:58.826681+00:00",
+      "productIds": [
+        "load-test-d5e81c1c",
+        "duplicate-test-d5e81c1c"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "cw-demo-20261125143744",
+      "name": "F06 CloudWatch telemetry test",
+      "startTime": "2026-11-25T07:35:44.2142520Z",
+      "endTime": "2026-11-25T08:37:44.2177566Z",
+      "productIds": [
+        "cw-demo-20261125143744"
+      ],
+      "maxQtyPerOrder": 1
+    },
+    {
+      "campaignId": "sale-demo-20261125144104",
+      "name": "Flash Sale phu kien - Demo 50 don",
+      "startTime": "2026-11-25T07:40:04.0978033Z",
+      "endTime": "2026-11-25T09:41:04.1008152Z",
+      "productIds": [
+        "sale-demo-20261125144104-earbuds",
+        "sale-demo-20261125144104-keyboard",
+        "sale-demo-20261125144104-mouse",
+        "sale-demo-20261125144104-speaker",
+        "sale-demo-20261125144104-headphones"
+      ],
+      "maxQtyPerOrder": 3
+    }
+  ]
+}
