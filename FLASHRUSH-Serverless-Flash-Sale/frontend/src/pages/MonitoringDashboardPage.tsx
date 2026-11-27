@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { AdminTopbar } from "../components/admin/AdminTopbar";
 import { AdminApiKeyControl } from "../components/admin/AdminApiKeyControl";
+import { AdminPageHeader } from "../components/admin/AdminPageHeader";
 
 import { Button } from "../components/common/Button";
 import {
@@ -121,11 +122,7 @@ export function MonitoringDashboardPage() {
       <div className="dash-admin">
         <AdminSidebar />
         <main id="main-content" tabIndex={-1} className="dash-admin-main">
-          <header className="dash-admin-header dash-heading dash-monitor-heading">
-            <div>
-              <h1>Giám sát hệ thống</h1>
-            </div>
-            <div className="dash-monitor-actions">
+          <AdminPageHeader title="Giám sát hệ thống" description="Theo dõi hàng đợi, Lambda và cảnh báo vận hành theo thời gian thực." actions={<div className="dash-monitor-actions">
               <label className="dash-scenario-select">
                 Khoảng thời gian{" "}
                 <select
@@ -152,8 +149,7 @@ export function MonitoringDashboardPage() {
                 <RefreshCw size={16} />
                 {loading ? "Đang tải..." : "Làm mới"}
               </Button>
-            </div>
-          </header>
+            </div>} />
           <div
             className="dash-admin-body dash-stack monitoring-body"
             aria-busy={loading}

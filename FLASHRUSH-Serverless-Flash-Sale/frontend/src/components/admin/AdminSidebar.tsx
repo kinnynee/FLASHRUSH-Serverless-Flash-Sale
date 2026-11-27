@@ -30,8 +30,7 @@ export function AdminSidebar() {
       <nav className="dash-nav" aria-label="Điều hướng quản trị">
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink to={to} key={to} end={to === "/admin"}>
-            <Icon size={18} aria-hidden="true" />
-            <span>{label}</span>
+            {({ isActive }) => <><Icon size={18} strokeWidth={isActive ? 2.5 : 2.2} aria-hidden="true" /><span>{label}</span></>}
           </NavLink>
         ))}
       </nav>

@@ -3,6 +3,7 @@ import { campaignService } from '../services/campaignService';
 import { useCampaigns } from '../hooks/useCampaigns';
 import { useProducts } from '../hooks/useProducts';
 import type { Campaign, CampaignInput, CampaignStatus } from '../types/campaign';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
 
 const statusLabels: Record<CampaignStatus, string> = {
   ACTIVE: 'Đang diễn ra',
@@ -103,12 +104,13 @@ export function AdminCampaignManagement() {
     }
   }
   return <section className="dash-stack" aria-labelledby="campaigns-title">
+    <AdminPageHeader title="Đợt Flash Sale" description="Tạo và quản lý lịch các đợt Flash Sale." actions={<button className="button button-primary" type="button" onClick={() => edit()}>＋ Tạo đợt Flash Sale</button>} />
     <div className="dash-card dash-table-card">
-      <div className="dash-section-heading"><div><h2 id="campaigns-title">Đợt Flash Sale</h2></div><button className="button button-primary" type="button" onClick={() => edit()}>Tạo đợt Flash Sale</button></div>
+      <div className="dash-section-heading"><div><h2 id="campaigns-title">Đợt Flash Sale</h2></div></div>
       {message && <p className="dash-success-message" role="status">{message}</p>}
       {failure && !formOpen && <p className="campaign-error" role="alert">{failure}</p>}
       {error && <p className="campaign-error" role="alert">{error} <button type="button" onClick={retry}>Tải lại</button></p>}
-      {loading ? <p>Đang tải đợt Flash Sale...</p> : campaigns.length > 0 ? <div className="dash-scroll-table"><table><thead><tr><th>Tên đợt Flash Sale</th><th>Trạng thái</th><th>Thời gian</th><th>Sản phẩm</th><th>Tối đa / đơn</th><th>Thao tác</th></tr></thead><tbody>{campaigns.map(campaign => <tr key={campaign.campaignId}><th>{campaign.name}<small>{campaign.campaignId}</small></th><td>{statusLabels[campaign.status]}</td><td><div className="campaign-time-range"><time dateTime={campaign.startTime}>{formatCampaignDateTime(campaign.startTime)}</time><span>đến</span><time dateTime={campaign.endTime}>{formatCampaignDateTime(campaign.endTime)}</time></div></td><td>{campaign.productIds.length}</td><td>{campaign.maxQtyPerOrder}</td><td><div className="campaign-row-actions"><button className="dash-text-link" type="button" onClick={() => edit(campaign)}>Chỉnh sửa</button><button className="campaign-delete-button" type="button" disabled={deleting === campaign.campaignId} onClick={() => void remove(campaign)}>{deleting === campaign.campaignId ? 'Đang xóa...' : 'Xóa'}</button></div></td></tr>)}</tbody></table></div> : <p>Chưa có đợt Flash Sale nào. Tạo đợt đầu tiên để bắt đầu.</p>}
+      {loading ? <p>Đang tải đợt Flash Sale...</p> : campaigns.length > 0 ? <div className="dash-scroll-table"><table><thead><tr><th>Tên đợt Flash Sale</th><th>Trạng thái</th><th>Thời gian</th><th>Sản phẩm</th><th>Tối đa / đơn</th><th>Thao tác</th></tr></thead><tbody>{campaigns.map(campaign => <tr key={campaign.campaignId}><th>{campaign.name}<small>{campaign.campaignId}</small></th><td><span className={`campaign-status campaign-status-${campaign.status.toLowerCase()}`}><span className="campaign-status-dot" />{statusLabels[campaign.status]}</span></td><td><div className="campaign-time-range"><time dateTime={campaign.startTime}>{formatCampaignDateTime(campaign.startTime)}</time><span>đến</span><time dateTime={campaign.endTime}>{formatCampaignDateTime(campaign.endTime)}</time></div></td><td>{campaign.productIds.length}</td><td>{campaign.maxQtyPerOrder}</td><td><div className="campaign-row-actions"><button className="dash-text-link" type="button" onClick={() => edit(campaign)}>Chỉnh sửa</button><button className="campaign-delete-button" type="button" disabled={deleting === campaign.campaignId} onClick={() => void remove(campaign)}>{deleting === campaign.campaignId ? 'Đang xóa...' : 'Xóa'}</button></div></td></tr>)}</tbody></table></div> : <div className="empty-state"><p>Chưa có đợt Flash Sale nào.</p><button className="button button-primary" type="button" onClick={() => edit()}>＋ Tạo đợt đầu tiên</button></div>}
     </div>
     {formOpen && <form className="dash-card campaign-form" onSubmit={submit}>
       <div className="dash-section-heading"><div><h2>{editing ? 'Chỉnh sửa đợt Flash Sale' : 'Tạo đợt Flash Sale mới'}</h2><p>Thời gian bắt đầu và kết thúc sử dụng múi giờ địa phương của thiết bị.</p></div><button className="button button-secondary" type="button" onClick={() => { setEditing(undefined); setFormOpen(false); setForm(emptyForm()); }}>Đóng</button></div>

@@ -7,6 +7,11 @@ export function AdminTopbar() {
         <div className="dash-topbar-brand-group">
           <BrandLogo />
         </div>
+        <div className="dash-topbar-status" aria-label="Trạng thái hệ thống">
+          <span className="dash-topbar-status-dot" />
+          <span>Trung tâm vận hành</span>
+          <strong>FLASHRUSH Admin</strong>
+        </div>
       </div>
     </header>
   );
