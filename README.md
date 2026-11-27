@@ -143,36 +143,26 @@ Ví dụ body tạo đơn:
 
 **Trạng thái đơn được lưu trong MVP:** `PENDING`, `CONFIRMED`, `OUT_OF_STOCK`, `FAILED`. `PROCESSING` có thể chỉ là nhãn hiển thị trên giao diện khi đơn còn `PENDING`.
 
-## 📂 Cấu trúc repository dự kiến
+## 📂 Cấu trúc repository
 
 ```text
 FLASHRUSH-Serverless-Flash-Sale/
-├── .github/                     # PR template, workflow / CI
-├── frontend/                    # React application
-├── backend/
-│   ├── order-api/               # Lambda tiếp nhận và tra cứu đơn
-│   ├── order-worker/            # Lambda xử lý SQS / DynamoDB
-│   └── shared/                  # Models / utilities dùng chung
-├── infrastructure/              # IAM, templates, config, diagrams
-├── scripts/                     # Deploy, seed, cleanup, reconciliation
-├── tests/                       # Unit, integration, load, evidence
-├── docs/
-│   ├── requirements/            # system-overview.md
-│   ├── architecture/            # Architecture .drawio / .png
-│   ├── api/                     # OpenAPI / contracts
-│   ├── data/                    # DynamoDB schema
-│   ├── decisions/               # ADRs
-│   ├── security/
-│   ├── operations/
-│   ├── cost/
-│   └── testing/
-├── workshop/
-│   └── 5-Workshop/              # Nội dung Hugo EN / VI
-├── CONTRIBUTING.md
+├── .github/workflows/           # CI và triển khai
+├── FLASHRUSH-Serverless-Flash-Sale/
+│   ├── frontend/                # React application và frontend tests
+│   ├── backend/                 # Lambda API/worker và backend tests
+│   ├── infrastructure/templates/
+│   ├── scripts/                 # CI, deploy, vận hành và seed
+│   ├── tests/evidence/          # Bằng chứng kiểm thử
+│   └── docs/
+│       ├── requirements/
+│       ├── architecture/
+│       ├── operations/
+│       └── remediation/
 └── README.md
 ```
 
-Cây trên mô tả **cấu trúc mục tiêu**; một số thư mục hoặc mã nguồn có thể chưa được tạo đầy đủ trong repository thực tế.
+Cây trên mô tả các thư mục chính hiện có; các thư mục khung rỗng đã được dọn.
 
 ## 💻 Chạy Frontend Demo (local)
 
@@ -221,7 +211,7 @@ Theo dõi các Task tại [Jira FLASHRUSH (SCRUM)](https://ktran6738.atlassian.n
 
 ## 📚 FCAJ Workshop
 
-Nội dung hướng dẫn tự thực hành được tổ chức dưới `workshop/5-Workshop/`:
+Nội dung Hugo song ngữ chưa được biên soạn; các file khung rỗng đã được dọn. Tham khảo [hướng dẫn vận hành](FLASHRUSH-Serverless-Flash-Sale/docs/operations/aws-lab.md) cho lab hiện tại. Cấu trúc workshop dự kiến:
 
 ```text
 5.1-Workshop-overview/
@@ -258,7 +248,6 @@ main
 - Commit theo Conventional Commits, ví dụ: `feat(SCRUM-17): implement order intake`.
 - Tạo **Pull Request** và được ít nhất một thành viên khác review trước khi merge.
 - Không push trực tiếp lên `main` hoặc commit secrets.
-- Xem thêm [`CONTRIBUTING.md`](FLASHRUSH-Serverless-Flash-Sale/CONTRIBUTING.md) nếu đã được thêm vào repository.
 
 ## 📖 Tài liệu tham khảo
 
