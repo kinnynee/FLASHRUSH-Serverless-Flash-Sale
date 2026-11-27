@@ -30,7 +30,8 @@ def extend_customer_resources(resources, outputs):
     for index, route in enumerate(('GET /me/profile', 'PUT /me/profile', 'GET /me/cart', 'PUT /me/cart',
                                     'POST /me/checkouts', 'GET /me/checkouts/{checkoutId}',
                                     'GET /me/orders', 'GET /me/orders/{orderId}',
-                                    'GET /me/checkout-quote', 'POST /me/checkout-quote', 'POST /me/vouchers/quote')):
+                                    'GET /me/checkout-quote', 'POST /me/checkout-quote', 'POST /me/vouchers/quote',
+                                    'GET /me/vouchers', 'POST /me/vouchers', 'POST /me/vouchers/save')):
         resources['CustomerRoute'+str(index)] = {'Type': 'AWS::ApiGatewayV2::Route', 'Properties': {
             'ApiId': ref('HttpApi'), 'RouteKey': route, 'AuthorizationType': 'JWT', 'AuthorizerId': ref('CustomerAuthorizer'),
             'AuthorizationScopes': ['aws.cognito.signin.user.admin'],

@@ -1,4 +1,4 @@
-# Cart, HAUMON and checkout
+# Cart, vouchers and checkout
 
 ## Behavior
 
@@ -6,7 +6,7 @@
 
 The current delivery policy is standard delivery with no shipping fee and COD. These are server-defined order options, not integrations with a carrier or online payment gateway. This is the default used pending a different business policy.
 
-HAUMON applies to the current Flash Sale prices of all selected eligible cart lines, excluding shipping. Minimum subtotal: VND 3,600,000. Discount: 3,636 basis points (36.36%), rounded down to whole VND, with no maximum discount or usage limit specified. Example: VND 3,600,000 subtotal gives VND 1,308,960 discount and VND 2,291,040 payable.
+All current codes are managed in the Business table. The previous hardcoded promotion has been retired. See [Voucher wallet and checkout](vouchers.md) for current offers, saving codes, eligibility, caps, limits and publication.
 
 ## API and persistence
 
@@ -36,8 +36,8 @@ For lab activation, use the existing guarded deployment command with the current
 ## Manual verification after backend deployment
 
 1. Sign in and add products from active Flash Sale campaigns. Open `/cart`, change quantity and reload; confirm the cart and header quantity agree.
-2. Select products totaling less than VND 3,600,000. Apply HAUMON: show the minimum-spend error and prevent checkout with that invalid code. Remove the code to continue without it.
-3. Select qualifying products; apply HAUMON and compare the server quote with the formula above. Unselect an item and verify eligibility/total is recalculated.
+2. Select products below a managed voucher minimum. Check the missing-spend message and verify the offer cannot be applied. Remove an invalid entered code to continue without it.
+3. Select qualifying products; choose the recommended voucher and compare the server quote with its percentage/fixed discount and cap. Unselect an item and verify eligibility/total is recalculated.
 4. Cancel a removal, then confirm it; verify cart contents and badge. Try a sold-out line: it must not be purchasable.
 5. Click Mua hang, choose a saved address, review standard delivery/COD and the final total, then confirm once. Check the group and individual orders for matching net totals.
 6. Repeat at desktop/tablet/mobile sizes. Verify another account cannot see the first account's cart or orders. Do not use real purchases merely to test concurrency.

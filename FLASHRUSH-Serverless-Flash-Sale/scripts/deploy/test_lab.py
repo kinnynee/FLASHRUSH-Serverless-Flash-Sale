@@ -9,6 +9,13 @@ from lab_config import connect, stack_outputs
 
 
 class GuardTests(unittest.TestCase):
+    def test_voucher_wallet_routes_require_customer_jwt(self):
+        routes = {r['Properties']['RouteKey']:r['Properties'] for r in template('bucket','key')['Resources'].values()
+                  if r['Type']=='AWS::ApiGatewayV2::Route'}
+        for key in ('GET /me/vouchers','POST /me/vouchers','POST /me/vouchers/save'):
+            self.assertEqual(routes[key]['AuthorizationType'],'JWT')
+            self.assertEqual(routes[key]['AuthorizerId'],{'Ref':'CustomerAuthorizer'})
+
     def setUp(self):
         self.args = SimpleNamespace(profile='lab', account='123456789012', region='us-east-1', stack='flashrush-lab')
 
@@ -35,12 +42,15 @@ class GuardTests(unittest.TestCase):
         self.assertNotIn('CustomErrorResponses', config)
         self.assertEqual(config['DefaultCacheBehavior']['FunctionAssociations'][0]['EventType'], 'viewer-request')
 
-    def test_admin_routes_require_iam(self):
+    def test_all_staff_routes_require_jwt(self):
         routes = {resource['Properties']['RouteKey']: resource['Properties']
                   for resource in template('bucket', 'key')['Resources'].values()
                   if resource['Type'] == 'AWS::ApiGatewayV2::Route'}
-        for route in ('POST /admin/campaigns', 'PATCH /admin/campaigns/{campaignId}'):
-            self.assertEqual(routes[route]['AuthorizationType'], 'AWS_IAM')
+        for route in routes:
+            if '/admin/' in route or route in ('GET /auth/me', 'POST /auth/logout'):
+                self.assertEqual(routes[route]['AuthorizationType'], 'JWT')
+                self.assertEqual(routes[route]['AuthorizerId'], {'Ref':'CustomerAuthorizer'})
+                self.assertEqual(routes[route]['AuthorizationScopes'], ['aws.cognito.signin.user.admin'])
         for route in ('GET /products', 'GET /campaigns', 'POST /orders', 'GET /orders/{orderId}'):
             self.assertEqual(routes[route]['AuthorizationType'], 'NONE')
 
@@ -59,7 +69,7 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(variables['MONITORING_WORKER_FUNCTION'], 'flashrush-lab-worker')
         routes = [r['Properties'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route']
         route = next(r for r in routes if r['RouteKey'] == 'GET /admin/monitoring')
-        self.assertEqual(route['AuthorizationType'], 'NONE')  # Backend validates the admin key before CloudWatch access.
+        self.assertEqual(route['AuthorizationType'], 'JWT')
 
     def test_recovery_age_and_attempt_boundaries(self):
         path = Path(__file__).resolve().parents[1] / 'ops/reconcile_pending.py'
@@ -76,7 +86,7 @@ class GuardTests(unittest.TestCase):
         config = template('bucket', 'key')
         resources = config['Resources']
         routes = [r['Properties'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route' and '/me/' in r['Properties']['RouteKey']]
-        self.assertEqual(len(routes), 11)
+        self.assertEqual(len(routes), 14)
         for route in routes:
             self.assertEqual(route['AuthorizationType'], 'JWT')
             self.assertEqual(route['AuthorizationScopes'], ['aws.cognito.signin.user.admin'])

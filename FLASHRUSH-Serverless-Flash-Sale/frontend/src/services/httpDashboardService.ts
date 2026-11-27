@@ -2,6 +2,7 @@ import type { AdminOrdersPage, DashboardSnapshot } from '../types/dashboard';
 import type { OrderRecord } from '../types/order';
 import type { Product } from '../types/product';
 import { adminHeaders } from './adminAuth';
+import { staffSessionVersion, clearStaffSession } from './accountService';
 import type { DashboardService } from './dashboardService';
 
 export class DashboardNotConfiguredError extends Error {
@@ -11,16 +12,18 @@ export class DashboardNotConfiguredError extends Error {
 async function request(path: string, init: RequestInit = {}) {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new DashboardNotConfiguredError();
+  const generation = staffSessionVersion();
   const response = await fetch(`${base.replace(/\/$/, '')}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...adminHeaders(), ...init.headers },
     signal: AbortSignal.timeout(15000),
   });
   const body = await response.json().catch(() => undefined) as Record<string, unknown> | undefined;
+  if (generation !== staffSessionVersion()) throw new Error('Session changed.');
+  if (response.status === 401) clearStaffSession();
   if (!response.ok) {
     const error = body?.error as { code?: string } | undefined;
-    if (response.status === 401) throw new Error('ADMIN_UNAUTHORIZED: API key không hợp lệ hoặc đã hết phiên.');
-    if (response.status === 503 && error?.code === 'ADMIN_AUTH_NOT_CONFIGURED') throw new Error('ADMIN_AUTH_NOT_CONFIGURED: Backend chưa được cấu hình ADMIN_API_KEY.');
+    if (response.status === 401) throw new Error('ADMIN_UNAUTHORIZED: Phiên nhân viên đã hết hạn. Vui lòng đăng nhập lại.');
     throw new Error(error?.code || `API quản trị trả về HTTP ${response.status}.`);
   }
   return body || {};
@@ -32,13 +35,14 @@ function order(value: unknown): OrderRecord {
   const details = item.item as Record<string, unknown> | undefined;
   if (typeof item.orderId !== 'string' || typeof item.status !== 'string' || typeof item.createdAt !== 'string' ||
       !details || typeof details.productId !== 'string' || typeof details.name !== 'string' ||
-      typeof details.image !== 'string' || !Number.isInteger(details.quantity) || typeof details.unitPrice !== 'number') {
+      typeof details.image !== 'string' || !Number.isInteger(details.quantity) || (details.unitPrice !== null && typeof details.unitPrice !== 'number')) {
     throw new Error('Dữ liệu đơn hàng không hợp lệ.');
   }
   return { totalAmount: typeof item.totalAmount === 'number' ? item.totalAmount : undefined, orderId: item.orderId, status: item.status as OrderRecord['status'], createdAt: Date.parse(item.createdAt),
     item: { productId: details.productId, name: details.name, image: details.image,
       quantity: Number(details.quantity), unitPrice: details.unitPrice,
-      ...(typeof details.totalAmount === 'number' ? { totalAmount: details.totalAmount } : {}),
+      ...(details.totalAmount === null || typeof details.totalAmount === 'number' ? { totalAmount: details.totalAmount } : {}),
+      ...(typeof details.selectedColor === 'string' ? { selectedColor: details.selectedColor } : {}),
       ...(typeof details.discountAmount === 'number' ? { discountAmount: details.discountAmount } : {}),
       ...(typeof details.voucherCode === 'string' ? { voucherCode: details.voucherCode } : {}) } };
 }
@@ -67,7 +71,7 @@ export const httpDashboardService: DashboardService = {
     };
     return {
       source: 'AWS', sessionId: 'AWS', updatedAt: String(data.serverTime || new Date().toISOString()),
-      totalRevenue: data.totalRevenue, successRate: Number(data.successRate || 0),
+      totalRevenue: data.totalRevenue, unknownRevenueOrders: Number(data.unknownRevenueOrders || 0), successRate: Number(data.successRate || 0),
       lowStockProducts: (data.lowStockProducts as unknown[]).map(product), orders,
       orderRecords: data.recentOrders.map(order), products,
       // Queue and Lambda telemetry are not part of F05's DynamoDB API payload.

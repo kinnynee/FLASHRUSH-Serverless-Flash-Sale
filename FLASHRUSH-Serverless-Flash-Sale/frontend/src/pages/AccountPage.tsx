@@ -25,14 +25,9 @@ export function AccountPage() {
   const [account, setAccount] = useState<Account>();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [orders, setOrders] = useState<
-    { orderId: string; status: string; quantity: number }[]
-  >([]);
   async function load() {
     const user = await businessRequest("/auth/me");
     setAccount(user);
-    const data = await businessRequest("/me/orders");
-    setOrders(data.items);
   }
   useEffect(() => {
     if (accessToken())
@@ -104,33 +99,18 @@ export function AccountPage() {
             <h2>{account.name || account.email}</h2>
             <p>{account.email}</p>
             <p>Vai trò: {account.roles.join(", ") || "Khách hàng"}</p>
-            {account.roles.length > 0 && <Link to="/admin">Mở quản trị</Link>}
+            {account.roles.length > 0 && <Link to={account.roles.every(role => role === 'warehouse') ? '/admin/inventory' : '/admin'}>Mở quản trị</Link>}
             <button
               className="button button-secondary"
               onClick={async () => {
                 await logout().catch(() => {});
                 setAccount(undefined);
-                setOrders([]);
               }}
             >
               Đăng xuất
             </button>
           </section>
-          <section className="order-panel">
-            <h2>Đơn hàng đã gắn tài khoản</h2>
-            {orders.length ? (
-              orders.map((order) => (
-                <p key={order.orderId}>
-                  {order.orderId} · {order.quantity} sản phẩm · {order.status}
-                </p>
-              ))
-            ) : (
-              <p>
-                Chưa có đơn hàng gắn tài khoản. Đơn khách vãng lai được giữ
-                riêng trên trình duyệt.
-              </p>
-            )}
-          </section>
+
         </>
       ) : (
         <form className="order-panel account-form" onSubmit={submit}>

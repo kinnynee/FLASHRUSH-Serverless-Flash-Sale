@@ -33,8 +33,8 @@ export function HomePage() {
     <section className="promo-banner" aria-label="Khuyến mãi công nghệ FLASHRUSH">
       <h1 className="sr-only">FLASHRUSH — Khuyến mãi công nghệ</h1>
       <Link className="promo-banner-link" to="/products?status=ALL" aria-label="Mua ngay — Xem sản phẩm Flash Sale">
-        <img src="/images/flashrush-promo-banner.png" width={1536} height={768} fetchPriority="high"
-          alt="FLASHRUSH: nhập mã HAUMON, giảm 36,36%, áp dụng cho đơn hàng từ 3,6 triệu đồng trở lên. Mua ngay." />
+        <img src="/images/flashrush-promo-vouchers.png" width={1536} height={768} fetchPriority="high"
+          alt="FLASHRUSH: khuyến mãi công nghệ, nhiều voucher ưu đãi. Xem điều kiện từng mã trong kho voucher. Mua ngay." />
       </Link>
     </section>
     <section className="sale-section" aria-labelledby="featured-title">

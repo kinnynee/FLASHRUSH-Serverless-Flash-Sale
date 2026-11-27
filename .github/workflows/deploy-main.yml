@@ -1,16 +1,28 @@
 name: Deploy AWS main
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      target:
+        description: Explicit isolated target
+        type: choice
+        options: [manual, lab]
+        required: true
+      environment:
+        description: GitHub environment with reviewed inventory and OIDC role
+        type: environment
+        required: true
 permissions:
   contents: read
 concurrency:
-  group: flashrush-manual-production
+  group: flashrush-${{ inputs.environment }}
   cancel-in-progress: false
 jobs:
   checks:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: FLASHRUSH-Serverless-Flash-Sale
@@ -27,46 +39,43 @@ jobs:
       - run: pip install -r backend/requirements-lock.txt
       - run: python -m unittest discover -s backend -p 'test_*.py'
       - run: python -m unittest discover -s scripts/deploy -p 'test_*.py'
-      - run: python -m unittest discover -s scripts/ops -p 'test_load_test.py'
+      - run: python -m unittest discover -s scripts/ops -p 'test_*.py'
       - run: npm ci --prefix frontend
       - run: npm test --prefix frontend
       - run: npm audit --prefix frontend --audit-level=high
-      - run: npm run build --prefix frontend
+      - name: Write explicit inventory
         env:
-          VITE_ORDER_MODE: http
-          VITE_API_BASE_URL: https://56l39g5pqk.execute-api.us-east-1.amazonaws.com
-          VITE_DEMO_SERVICE_ERROR: 'false'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: FLASHRUSH-Serverless-Flash-Sale/frontend/dist
-  deploy:
-    needs: checks
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: pip install boto3==1.44.5
-      - uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: FLASHRUSH-Serverless-Flash-Sale/frontend/dist
+          INVENTORY_JSON: ${{ vars.FLASHRUSH_INVENTORY_JSON }}
+          SELECTED_TARGET: ${{ inputs.target }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          value = json.loads(os.environ['INVENTORY_JSON'])
+          assert value['target'] == os.environ['SELECTED_TARGET'], 'Target mismatch'
+          Path('.build').mkdir(exist_ok=True)
+          Path('.build/target.json').write_text(json.dumps(value))
+          PY
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::303278700480:role/flashrush-github-main-deploy
-          aws-region: us-east-1
-          allowed-account-ids: '303278700480'
-      - name: Deploy and verify
-        run: python FLASHRUSH-Serverless-Flash-Sale/scripts/ci/deploy_manual.py
+          role-to-assume: ${{ vars.FLASHRUSH_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.FLASHRUSH_REGION }}
+          allowed-account-ids: ${{ vars.FLASHRUSH_ACCOUNT_ID }}
+      - name: Validate infrastructure before build
+        run: python scripts/ci/release_check.py --inventory .build/target.json --preflight --github-env "$GITHUB_ENV" --output .build/release/preflight.json
+      - run: npm run build --prefix frontend
+      - name: Bind artifact to validated target
+        run: python scripts/ci/release_check.py --inventory .build/target.json --bind frontend/dist
+      - name: Deploy existing resources and verify smoke levels
+        env:
+          SMOKE_CUSTOMER_USERNAME: ${{ secrets.SMOKE_CUSTOMER_USERNAME }}
+          SMOKE_CUSTOMER_PASSWORD: ${{ secrets.SMOKE_CUSTOMER_PASSWORD }}
+          SMOKE_STAFF_USERNAME: ${{ secrets.SMOKE_STAFF_USERNAME }}
+          SMOKE_STAFF_PASSWORD: ${{ secrets.SMOKE_STAFF_PASSWORD }}
+        run: python scripts/ci/deploy_manual.py --inventory .build/target.json --execute
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: release-backups-${{ github.run_id }}
+          name: release-evidence-${{ github.run_id }}
           path: FLASHRUSH-Serverless-Flash-Sale/.build/release
           retention-days: 14

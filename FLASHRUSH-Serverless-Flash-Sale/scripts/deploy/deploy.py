@@ -151,6 +151,24 @@ def template(bucket, code_key):
     if 'authorization' not in headers: headers.append('authorization')
     for name in ('Api', 'Worker'):
         resources[name]['Properties']['Environment']['Variables'].update(BUSINESS_TABLE=ref('Business'), USER_POOL_ID=ref('CustomerPool'), USER_POOL_CLIENT_ID=ref('CustomerClient'))
+    for value in resources.values():
+        if value['Type'] == 'AWS::ApiGatewayV2::Route':
+            route = value['Properties']
+            if '/admin/' in route['RouteKey'] or route['RouteKey'] in ('GET /auth/me', 'POST /auth/logout'):
+                route.update(AuthorizationType='JWT', AuthorizerId=ref('CustomerAuthorizer'),
+                             AuthorizationScopes=['aws.cognito.signin.user.admin'])
+    resources['SpaRewrite']['Properties']['FunctionCode'] = resources['SpaRewrite']['Properties']['FunctionCode'].replace('products|checkout', 'staff|products|checkout')
+    outputs.update({key: {'Value': ref(value)} for key, value in {
+        'ApiId':'HttpApi', 'ApiFunction':'Api', 'WorkerFunction':'Worker', 'AuthorizerId':'CustomerAuthorizer'}.items()})
+    tags = {'Project':'FLASHRUSH', 'Environment':'lab'}
+    for value in resources.values():
+        kind, props = value['Type'], value['Properties']
+        if kind == 'AWS::Cognito::UserPool':
+            props['UserPoolTags'] = tags.copy()
+        elif kind == 'AWS::ApiGatewayV2::Api':
+            props['Tags'] = tags.copy()
+        elif kind in ('AWS::DynamoDB::Table','AWS::SQS::Queue','AWS::Lambda::Function','AWS::S3::Bucket','AWS::CloudFront::Distribution'):
+            props['Tags'] = [{'Key':k,'Value':v} for k,v in tags.items()]
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; admin dashboard API',
             'Parameters': parameters, 'Resources': resources, 'Outputs': outputs}
 

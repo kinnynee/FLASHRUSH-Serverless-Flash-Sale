@@ -49,7 +49,7 @@ export const mockDashboardService: DashboardService = {
     return structuredClone({
       source: 'MOCK', sessionId: { warning: 'DEMO-01', healthy: 'DEMO-02', empty: 'DEMO-03' }[scenario], updatedAt: snapshotTime,
       orders, orderRecords, products, sqs, lambda, alerts,
-      totalRevenue: orderRecords.filter(order => order.status === 'CONFIRMED').reduce((sum, order) => sum + order.item.unitPrice * order.item.quantity, 0),
+      totalRevenue: orderRecords.filter(order => order.status === 'CONFIRMED').reduce((sum, order) => sum + (order.item.unitPrice ?? 0) * order.item.quantity, 0),
       successRate: orderRecords.length ? orders.confirmed * 100 / orderRecords.length : 0,
       lowStockProducts: products.filter(product => product.stock > 0 && product.stock <= 5),
     });

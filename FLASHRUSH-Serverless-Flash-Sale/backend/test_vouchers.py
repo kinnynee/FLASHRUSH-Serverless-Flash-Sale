@@ -4,6 +4,8 @@ import boto3
 from moto import mock_aws
 import test_customer
 import vouchers
+from unittest.mock import patch
+from botocore.exceptions import ClientError
 
 @mock_aws
 class VoucherTests(unittest.TestCase):
@@ -77,3 +79,100 @@ class VoucherTests(unittest.TestCase):
         f.process(result)
         self.assertEqual(f.app.read_order(result['orders'][0]['orderId'])['status'],'CONFIRMED')
         self.assertEqual(result['pricing']['discount'],15)
+
+    def test_retired_code_cannot_be_quoted_saved_created_or_listed(self):
+        self.table.put_item(Item={**self.value, 'id':'voucher#HAUMON', 'code':'HAUMON'})
+        f = self.fixture
+        body = f.prepare()
+        for path, payload in [('/me/checkout-quote', {**body, 'voucherCode':'HAUMON'}),
+                              ('/me/vouchers/save', {'code':' haumon '})]:
+            payload.pop('addressId', None)
+            status, result = f.request('POST', path, payload)
+            self.assertEqual(status, 409)
+            self.assertEqual(result['error']['code'], 'VOUCHER_RETIRED')
+        self.assertNotIn('HAUMON', [item['code'] for item in vouchers.catalog('alice')['items']])
+        with self.assertRaisesRegex(vouchers.VoucherError, 'RETIRED'):
+            vouchers.validate({**vouchers.presets()[0], 'code':'HAUMON'})
+
+    def test_catalog_quotes_owned_selection_and_recommends_largest_discount(self):
+        f = self.fixture
+        self.table.put_item(Item={**self.value, 'id':'voucher#FIXED30', 'code':'FIXED30',
+                                 'type':'fixed', 'value':30, 'maxDiscount':0})
+        body = f.prepare()
+        selection = {k:body[k] for k in ('version','lineIds')}
+        status, result = f.request('POST', '/me/vouchers', selection)
+        self.assertEqual(status, 200)
+        self.assertEqual((result['bestCode'], result['subtotal']), ('FIXED30', 200))
+        self.assertEqual(result['items'][0]['discount'], 30)
+        self.assertEqual(f.request('POST', '/me/vouchers', selection, user='bob')[0], 409)
+        self.assertEqual(f.request('POST', '/me/vouchers', {**selection, 'subtotal':999999})[0], 400)
+        self.assertEqual(f.request('POST', '/me/vouchers', {**selection, 'version':0})[0], 409)
+        self.assertEqual(self.table.get_item(Key={'id':'voucher#SALE10'})['Item']['usedCount'], 0)
+
+    def test_catalog_explains_minimum_stock_future_and_exhaustion(self):
+        f = self.fixture
+        self.value['minSpend'] = 500
+        self.table.put_item(Item=self.value)
+        body = f.prepare()
+        selection = {k:body[k] for k in ('version','lineIds')}
+        result = f.request('POST','/me/vouchers',selection)[1]
+        self.assertEqual((result['items'][0]['reason'], result['items'][0]['missingSpend']), ('VOUCHER_MIN_SPEND',300))
+        self.assertIsNone(result['bestCode'])
+        f.app.products.update_item(Key={'productId':'one'},UpdateExpression='SET stock=:v',ExpressionAttributeValues={':v':0})
+        self.assertEqual(f.request('POST','/me/vouchers',selection)[1]['items'][0]['reason'],'SALE_SOLD_OUT')
+        self.value.update(startsAt=f.end, endsAt='2099-01-01T00:00:00+00:00')
+        self.table.put_item(Item=self.value)
+        self.assertEqual(vouchers.catalog('alice',1000)['items'][0]['reason'],'VOUCHER_NOT_STARTED')
+        self.value.update(startsAt=f.start, usedCount=1)
+        self.table.put_item(Item=self.value)
+        self.assertEqual(vouchers.catalog('alice',1000)['items'][0]['reason'],'VOUCHER_EXHAUSTED')
+
+    def test_save_is_private_idempotent_and_does_not_reserve_usage(self):
+        f = self.fixture
+        for _ in range(2):
+            self.assertEqual(f.request('POST','/me/vouchers/save',{'code':' sale10 '})[0],200)
+        self.assertTrue(f.request('GET','/me/vouchers')[1]['items'][0]['saved'])
+        self.assertFalse(f.request('GET','/me/vouchers',user='bob')[1]['items'][0]['saved'])
+        self.assertEqual(self.table.get_item(Key={'id':'voucher#SALE10'})['Item']['usedCount'],0)
+        self.assertEqual(len([i for i in self.table.scan()['Items'] if i.get('kind')=='savedVoucher']),1)
+        self.assertEqual(f.request('POST','/me/vouchers/save',{'code':'SALE10','userId':'bob'})[0],400)
+
+    def test_expired_and_disabled_codes_disappear_and_saved_code_can_be_revoked(self):
+        vouchers.save('SALE10','alice')
+        self.value['enabled'] = False
+        self.table.put_item(Item=self.value)
+        self.assertEqual(vouchers.catalog('alice',200)['items'],[])
+        with self.assertRaisesRegex(vouchers.VoucherError,'UNAVAILABLE'): vouchers.quote('SALE10','alice',200)
+        self.value.update(enabled=True, startsAt='2020-01-01T00:00:00Z', endsAt='2020-02-01T00:00:00Z')
+        self.table.put_item(Item=self.value)
+        self.assertEqual(vouchers.catalog('alice',200)['items'],[])
+        with self.assertRaisesRegex(vouchers.VoucherError,'EXPIRED'): vouchers.quote('SALE10','alice',200)
+
+    def test_transaction_race_for_last_redemption_retries_without_overspend(self):
+        f = self.fixture
+        body = f.prepare(); body.update(voucherCode='SALE10',expectedTotal=185)
+        _, first, _ = f.checkout(body)
+        other = f.prepare('bob'); other.update(voucherCode='SALE10',expectedTotal=185)
+        _, second, _ = f.checkout(other, user='bob')
+        original = f.app.ddb.transact_write_items
+        raced = False
+        def interleave(**kwargs):
+            nonlocal raced
+            if not raced:
+                raced = True
+                f.process(second, user='bob')
+            return original(**kwargs)
+        with patch.object(f.app.ddb,'transact_write_items',side_effect=interleave):
+            with self.assertRaises(ClientError): f.process(first)
+        f.process(first)
+        self.assertEqual(f.app.read_order(first['orders'][0]['orderId'])['status'],'FAILED')
+        self.assertEqual(f.app.read_order(second['orders'][0]['orderId'])['status'],'CONFIRMED')
+        self.assertEqual(self.table.get_item(Key={'id':'voucher#SALE10'})['Item']['usedCount'],1)
+        self.assertEqual(f.app.products.get_item(Key={'productId':'one'})['Item']['stock'],2)
+
+    def test_presets_are_valid_distinct_and_do_not_publish_on_read(self):
+        presets = vouchers.presets()
+        self.assertEqual(len({p['code'] for p in presets}),5)
+        self.assertEqual({p['type'] for p in presets},{'percent','fixed'})
+        for preset in presets: vouchers.validate(preset)
+        self.assertEqual(self.table.scan()['Count'],1)

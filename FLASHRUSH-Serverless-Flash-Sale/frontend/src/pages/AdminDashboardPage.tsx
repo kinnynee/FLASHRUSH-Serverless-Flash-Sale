@@ -71,6 +71,7 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
                 </Link>)}
               </nav>}
               {section === 'overview' && <OrderMetricsOverview orders={data.orders} revenue={data.totalRevenue} successRate={data.successRate} />}
+              {section === 'overview' && Boolean(data.unknownRevenueOrders) && <p role="status">Doanh thu chưa bao gồm {data.unknownRevenueOrders} đơn cũ thiếu dữ liệu giá.</p>}
               {section === 'products' && <ProductInventoryTable products={data.products} onRefresh={refresh} />}
               {section === 'overview' && <ProductInventoryTable products={data.products} onRefresh={refresh} />}
               {section === 'overview' && <RecentOrdersTable orders={data.orderRecords} recent />}

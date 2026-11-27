@@ -3,6 +3,8 @@ import hashlib
 import json
 import os
 import uuid
+import base64
+import time
 from datetime import datetime, timezone
 from decimal import Decimal
 import boto3
@@ -28,10 +30,29 @@ def body(event):
 def identity(event):
     headers = {k.lower():v for k,v in event.get('headers', {}).items()}
     auth = headers.get('authorization', '')
-    if not auth.startswith('Bearer '): auth = headers.get('x-user-token', '')
     if not auth.startswith('Bearer '): return None
     user = cognito().get_user(AccessToken=auth[7:])
     attrs = {v['Name']:v['Value'] for v in user['UserAttributes']}
+    claims = event.get('requestContext', {}).get('authorizer', {}).get('jwt', {}).get('claims')
+    # Mixed guest/authenticated /orders cannot have an optional Gateway authorizer.
+    # GetUser has already validated the token; decode only to bind its issuer/client.
+    if claims is None and event.get('rawPath') == '/orders':
+        try:
+            encoded = auth[7:].split('.')[1]
+            claims = json.loads(base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)))
+        except (ValueError, IndexError, UnicodeError):
+            claims = {}
+    claims = claims or {}
+    try:
+        valid = (claims.get('sub') == attrs.get('sub') and bool(attrs.get('sub')) and
+                 bool(os.environ.get('CUSTOMER_ISSUER')) and claims.get('iss') == os.environ.get('CUSTOMER_ISSUER') and
+                 claims.get('client_id') == client_id() and claims.get('token_use') == 'access' and
+                 float(claims.get('exp', 0)) > time.time() and
+                 'aws.cognito.signin.user.admin' in str(claims.get('scope', '')).split())
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise ClientError({'Error': {'Code': 'NotAuthorizedException', 'Message': 'Invalid access token'}}, 'GetUser')
     actual = cognito().admin_get_user(UserPoolId=pool(), Username=user['Username'])
     local_attrs = {v['Name']:v['Value'] for v in actual['UserAttributes']}
     if local_attrs.get('sub') != attrs.get('sub') or not actual.get('Enabled', False):

@@ -59,7 +59,20 @@ def read_order(order_id):
 
 
 def public_order(item):
-    return {k: item[k] for k in ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt')}
+    result = {k: item[k] for k in ('orderId', 'productId', 'quantity', 'status', 'createdAt', 'updatedAt')}
+    snapshot = item.get('item', {})
+    price = item.get('unitPrice', snapshot.get('unitPrice'))
+    subtotal = item.get('subtotal', price * item['quantity'] if price is not None else None)
+    discount = item.get('discount', snapshot.get('discountAmount', 0))
+    total = item.get('totalAmount', snapshot.get('totalAmount', subtotal - discount if subtotal is not None else None))
+    details = {k: snapshot[k] for k in ('name', 'image', 'selectedColor') if k in snapshot}
+    details.update(productId=item['productId'], quantity=item['quantity'], unitPrice=price,
+                   totalAmount=total, discountAmount=discount, voucherCode=item.get('voucherCode', ''))
+    details.setdefault('name', item['productId'])
+    details.setdefault('image', '')
+    result.update(item=details, unitPrice=price, subtotal=subtotal, discount=discount,
+                  totalAmount=total, shippingFee=item.get('shippingFee', 0), currency=item.get('currency', 'VND'))
+    return result
 
 
 def parse_time(value):
@@ -251,14 +264,7 @@ def scan_all(table, **scan_kwargs):
 
 
 def admin_order_record(item, product_map):
-    product = product_map.get(item.get('productId'), {})
-    if item.get('ownerId'):
-        return {**public_order(item), 'unitPrice': item['unitPrice'], 'item': item['item'], 'totalAmount': item.get('totalAmount', item['unitPrice']*item['quantity']), 'discount': item.get('discount',0), 'voucherCode':item.get('voucherCode','')}
-    unit_price = item.get('unitPrice', product.get('price', 0))
-    return {**public_order(item), 'unitPrice': unit_price,
-            'item': {'productId': item['productId'], 'name': product.get('name', item['productId']),
-                     'image': (product.get('images') or [''])[0], 'quantity': item['quantity'],
-                     'unitPrice': unit_price}}
+    return public_order(item)
 
 
 def admin_overview_payload(current=None):
@@ -267,16 +273,21 @@ def admin_overview_payload(current=None):
     product_map = {item['productId']: item for item in product_items}
     counts = {status: 0 for status in ('PENDING', 'PROCESSING', 'CONFIRMED', 'OUT_OF_STOCK', 'FAILED')}
     revenue = 0
+    unknown_revenue_orders = 0
     for order in order_items:
         status = order.get('status')
         if status in counts:
             counts[status] += 1
         if status == 'CONFIRMED':
-            price = order.get('unitPrice', product_map.get(order.get('productId'), {}).get('price', 0))
-            revenue += order.get('totalAmount', price * order.get('quantity', 0))
+            total = public_order(order)['totalAmount']
+            if total is None:
+                unknown_revenue_orders += 1
+            else:
+                revenue += total
     total = len(order_items)
     ordered = sorted(order_items, key=lambda item: (item.get('createdAt', ''), item['orderId']), reverse=True)
     return {'serverTime': (current or datetime.now(timezone.utc)).isoformat(), 'totalRevenue': revenue,
+            'unknownRevenueOrders': unknown_revenue_orders,
             'totalOrders': total, 'ordersByStatus': counts,
             'successRate': round(counts['CONFIRMED'] * 100 / total, 2) if total else 0,
             'lowStockProducts': [item for item in product_items if 0 < item.get('stock', 0) <= LOW_STOCK_THRESHOLD],
@@ -352,7 +363,7 @@ def route(event):
     method = event['requestContext']['http']['method']
     path = event.get('rawPath', '/')
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
-    if path.startswith('/me/') and os.environ.get('CUSTOMERS_TABLE'):
+    if path.startswith('/me/'):
         from customer import route as customer_route
         return customer_route(event)
     import business
@@ -361,17 +372,20 @@ def route(event):
             return business.auth_route(event, response, error)
         except ClientError as exc:
             code = exc.response['Error']['Code']
-            return error(429 if code in ('TooManyRequestsException', 'LimitExceededException') else 400,
+            status = 401 if code in ('NotAuthorizedException', 'UserNotFoundException') else 429 if code in ('TooManyRequestsException', 'LimitExceededException') else 400
+            return error(status,
                          'AUTH_REQUEST_REJECTED' if code not in ('UserNotConfirmedException', 'PasswordResetRequiredException') else code)
     user = None
-    if (headers.get('authorization') or headers.get('x-user-token')) and (path.startswith('/admin/') or (method == 'POST' and path == '/orders')):
+    if headers.get('authorization') and (path.startswith('/admin/') or (method == 'POST' and path == '/orders')):
         try:
             user = business.identity(event)
         except ClientError:
             return error(401, 'UNAUTHORIZED')
 
     if path.startswith('/admin/'):
-        legacy = bool(ADMIN_API_KEY) and hmac.compare_digest(headers.get('x-admin-key', ''), ADMIN_API_KEY)
+        legacy = (os.environ.get('ALLOW_LEGACY_ADMIN_IAM') == 'true' and
+                  bool(event.get('requestContext', {}).get('authorizer', {}).get('iam', {}).get('userArn')) and
+                  bool(ADMIN_API_KEY) and hmac.compare_digest(headers.get('x-admin-key', ''), ADMIN_API_KEY))
         if not legacy and not business.authorize(user, method, path):
             return error(403 if user else 401, 'FORBIDDEN' if user else 'ADMIN_UNAUTHORIZED')
         if legacy:
@@ -383,15 +397,6 @@ def route(event):
             return business.route(event, user, products, response, error)
         if method == 'PATCH' and path.startswith('/admin/products/') and business.body(event).get('stockDelta') is not None:
             return error(400, 'USE_INVENTORY_ADJUSTMENTS')
-    if method == 'GET' and path == '/me/orders':
-        if not user: return error(401, 'UNAUTHORIZED')
-        found, kwargs = [], {}
-        while True:
-            page = orders.scan(**kwargs)
-            found.extend(public_order(i) for i in page['Items'] if i.get('customerId') == user['id'])
-            if not page.get('LastEvaluatedKey'): break
-            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
-        return response(200, {'items': sorted(found, key=lambda i: i['createdAt'], reverse=True)[:200]})
     if method == 'GET' and path == '/admin/overview':
         return response(200, admin_overview_payload())
     if method == 'GET' and path == '/admin/monitoring':
@@ -539,7 +544,7 @@ def route(event):
     if method == 'GET' and path.startswith('/orders/'):
         item = read_order(path.split('/')[-1])
         token_hash = digest(headers.get('x-order-token', ''))
-        if not item or item.get('ownerId') or not hmac.compare_digest(item['idempotencyKeyHash'], token_hash):
+        if not item or item.get('ownerId') or item.get('customerId') or not hmac.compare_digest(item['idempotencyKeyHash'], token_hash):
             return error(404, 'ORDER_NOT_FOUND')
         return response(200, public_order(item))
     if method != 'POST' or path != '/orders':
@@ -561,12 +566,21 @@ def route(event):
     if not isinstance(pid, str) or not pid or len(pid) > 128 or type(qty) is not int or not 1 <= qty <= MAX_QUANTITY:
         return error(400, 'INVALID_REQUEST')
     payload_hash = digest(json.dumps({'productId': pid, 'quantity': qty}, sort_keys=True, separators=(',', ':')))
+    color = payload.get('selectedColor', '')
+    if not isinstance(color, str) or len(color) > 100:
+        return error(400, 'INVALID_REQUEST')
+    if color:
+        payload_hash = digest(json.dumps({'productId': pid, 'quantity': qty, 'selectedColor': color}, sort_keys=True, separators=(',', ':')))
+    if user and not os.environ.get('CUSTOMERS_TABLE'):
+        return error(503, 'CUSTOMER_NOT_CONFIGURED')
     oid = 'ord_' + digest('flashrush-demo:v1:' + key)[:32]
     item = read_order(oid)
     if not item:
         product = products.get_item(Key={'productId': pid}).get('Item')
         if not product:
             return error(404, 'PRODUCT_NOT_FOUND')
+        if color and color not in product.get('colors', []):
+            return error(409, 'VARIANT_CHANGED')
         if product.get('stock', 0) <= 0:
             return error(409, 'SALE_SOLD_OUT')
         current = datetime.now(timezone.utc)
@@ -576,19 +590,33 @@ def route(event):
         item = {'orderId': oid, **({'customerId': user['id']} if user else {}), 'productId': pid, 'quantity': qty, 'unitPrice': product['price'], 'status': 'PENDING',
                 'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': now(),
                 'updatedAt': now(), 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0, 'correlationId': str(uuid.uuid4())}
+        item.update(subtotal=product['price'] * qty, discount=0, shippingFee=0,
+                    totalAmount=product['price'] * qty, currency='VND',
+                    item={'productId':pid, 'name':product['name'], 'image':(product.get('images') or [''])[0],
+                          'quantity':qty, 'unitPrice':product['price'], 'selectedColor':color,
+                          'totalAmount':product['price'] * qty})
         try:
-            orders.put_item(Item=item, ConditionExpression='attribute_not_exists(orderId)')
+            if user:
+                from customer import index_write
+                ddb.transact_write_items(TransactItems=[{'Put': {'TableName': orders.name, 'Item': values(item),
+                    'ConditionExpression': 'attribute_not_exists(orderId)'}}, index_write(item)])
+            else:
+                orders.put_item(Item=item, ConditionExpression='attribute_not_exists(orderId)')
         except ClientError as exc:
-            if exc.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            if exc.response['Error']['Code'] not in ('ConditionalCheckFailedException', 'TransactionCanceledException'):
                 raise
             item = read_order(oid)
+            if not item:
+                raise
+    if item.get('customerId') != (user['id'] if user else None):
+        return error(409, 'IDEMPOTENCY_OWNER_CONFLICT')
     if item['payloadHash'] != payload_hash:
         return error(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT')
     if item['status'] in TERMINAL:
         return response(200, public_order(item))
     if not enqueue(item):
         return error(503, 'ORDER_NOT_QUEUED_YET', True)
-    return response(202, {**public_order(item), 'accepted': True, 'statusUrl': '/orders/' + oid})
+    return response(202, {**public_order(item), 'accepted': True, 'statusUrl': ('/me/orders/' if user else '/orders/') + oid})
 
 
 def process(message):

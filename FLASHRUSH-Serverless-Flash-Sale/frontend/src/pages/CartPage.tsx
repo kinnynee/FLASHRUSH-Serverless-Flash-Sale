@@ -2,6 +2,7 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Trash2, ShoppingCart, TicketPercent, MapPin, Truck, CreditCard, ArrowLeft } from 'lucide-react';
 import { useCustomer } from '../components/customer/CustomerProvider';
+import { VoucherWallet } from '../components/customer/VoucherWallet';
 import { CustomerGate } from './CustomerAuthPage';
 import { customerService, CustomerApiError, customerMessage, type Profile, type CheckoutInput, type CheckoutOptions, type Pricing } from '../services/customerService';
 import { ProductImage } from '../components/common/ProductImage';
@@ -115,12 +116,13 @@ function CartContent({ checkoutMode }: { checkoutMode: boolean }) {
           {!checkoutMode && <button className="cart-remove" aria-label={'Xóa ' + line.product?.name} disabled={frozen} onClick={() => setRemoveId(line.lineId)}><Trash2 size={18} /></button>}
         </article>)}
       </section>
-      <div className="checkout-panels"><section className="customer-panel voucher-panel"><h2><TicketPercent size={20} /> FLASHRUSH Voucher</h2>{options && <p className="customer-muted">{options.voucher.code}: giảm {options.voucher.basisPoints / 100}% khi tiền sản phẩm được chọn từ {formatPrice(options.voucher.minimum)}.</p>}
-        <form className="voucher-form" onSubmit={e => { e.preventDefault(); setQuoteState(undefined); setVoucher(voucherInput.trim().toUpperCase()); setRevision(value => value + 1); }}><label className="sr-only" htmlFor="voucher-code">Mã giảm giá</label><input id="voucher-code" placeholder="Nhập mã giảm giá" maxLength={30} value={voucherInput} disabled={frozen} onChange={e => setVoucherInput(e.target.value)} /><button className="button button-secondary" disabled={frozen || !selectionValid || !options || !voucherInput.trim()}>Áp dụng</button></form>
+      <div className="checkout-panels"><section className="customer-panel voucher-panel"><h2><TicketPercent size={20} /> FLASHRUSH Voucher</h2>
+        <form className="voucher-form" onSubmit={e => { e.preventDefault(); setQuoteState(undefined); setVoucher(voucherInput.trim().toUpperCase()); setRevision(value => value + 1); }}><label className="sr-only" htmlFor="voucher-code">Mã giảm giá</label><input id="voucher-code" placeholder="Nhập mã giảm giá" maxLength={32} value={voucherInput} disabled={frozen} onChange={e => setVoucherInput(e.target.value)} /><button className="button button-secondary" disabled={frozen || !selectionValid || !options || !voucherInput.trim()}>Áp dụng</button></form>
         {voucher && <button className="text-link voucher-remove" disabled={frozen} onClick={() => { setVoucher(''); setVoucherInput(''); }}>Bỏ mã {voucher}</button>}
         {quote?.voucherCode && <p className="voucher-success" role="status">Đã áp dụng {quote.voucherCode}: giảm {formatPrice(quote.discount)}.</p>}
         {quoteError && <p className="order-error" role="alert">{quoteError} <button className="text-link" onClick={() => { setQuoteState(undefined); setRevision(value => value + 1); }}>Thử lại</button></p>}
         {quoting && <p className="customer-muted" role="status">Đang xác thực giá và ưu đãi…</p>}
+        <VoucherWallet selection={chosen.length > 0 && chosen.length <= 10 ? { version: cart?.version ?? 0, lineIds: chosen.map(line => line.lineId) } : undefined} appliedCode={voucher} disabled={frozen} onApply={code => { setQuoteState(undefined); setVoucher(code); setVoucherInput(code); setRevision(value => value + 1); }} />
       </section>
       {checkoutMode && <section className="customer-panel checkout-methods"><h2><Truck size={20} /> Vận chuyển</h2>{options?.shipping.map(method => <label key={method.id}><input type="radio" name="shipping" value={method.id} checked={shippingMethod === method.id} disabled={frozen} onChange={() => setShipping(method.id)} /><span>{method.name}</span><strong>{method.fee === 0 ? 'Miễn phí' : formatPrice(method.fee)}</strong></label>)}<h2><CreditCard size={20} /> Thanh toán</h2>{options?.payments.map(method => <label key={method.id}><input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} disabled={frozen} onChange={() => setPayment(method.id)} />{method.name}</label>)}<small>Không thu tiền trực tuyến tại bước này.</small></section>}
       </div>

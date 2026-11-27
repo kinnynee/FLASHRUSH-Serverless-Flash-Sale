@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
+import './styles/vouchers.css';
 import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { CustomerProvider } from './components/customer/CustomerProvider';
 import { CustomerAuthPage } from './pages/CustomerAuthPage';
 import { CartPage } from './pages/CartPage';
+import { VouchersPage } from './pages/VouchersPage';
 import { CustomerAccountPage, CustomerOrderPage } from './pages/CustomerAccountPage';
 
 import { AccountPage } from './pages/AccountPage';
@@ -34,6 +36,7 @@ export default function App() {
       '/': 'Flash Sale hôm nay',
       '/products': 'Sản phẩm Flash Sale',
       '/cart/checkout': 'Xác nhận đơn hàng',
+      '/account/vouchers': 'Kho voucher của tôi',
       '/auth': 'Đăng nhập và đăng ký', '/cart': 'Giỏ hàng', '/account': 'Tài khoản của tôi', '/account/orders': 'Đơn mua', '/account/addresses': 'Địa chỉ nhận hàng', '/account/password': 'Đổi mật khẩu',
 
       '/admin': 'Tổng quan Flash Sale',
@@ -61,6 +64,7 @@ export default function App() {
         <Route path="/account" element={<CustomerAccountPage />} />
         <Route path="/account/addresses" element={<CustomerAccountPage section="addresses" />} />
         <Route path="/account/password" element={<CustomerAccountPage section="password" />} />
+        <Route path="/account/vouchers" element={<VouchersPage />} />
         <Route path="/account/orders" element={<CustomerAccountPage section="orders" />} />
         <Route path="/account/orders/:id" element={<CustomerOrderPage />} />
         <Route path="/account/checkouts/:id" element={<CustomerOrderPage group />} />

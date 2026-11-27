@@ -3,6 +3,7 @@ import type { Campaign, CampaignInput, CampaignStatus } from '../types/campaign'
 import { syncServerTime } from '../utils/serverClock';
 import { getServerNow } from '../utils/serverClock';
 import { adminHeaders } from './adminAuth';
+import { staffSessionVersion, clearStaffSession } from './accountService';
 
 export interface CampaignService {
   getCampaigns(): Promise<Campaign[]>;
@@ -62,14 +63,19 @@ function save(campaigns: Campaign[]) {
 async function request(path: string, init?: RequestInit): Promise<unknown> {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new Error('Chưa cấu hình API chiến dịch.');
+  const generation = staffSessionVersion();
   const response = await fetch(`${base.replace(/\/$/, '')}${path}`, {
     ...init, headers: { 'Content-Type': 'application/json', ...adminHeaders(), ...init?.headers }, signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { code?: string } } | undefined;
+    if (generation !== staffSessionVersion()) throw new Error('Session changed.');
+    if (response.status === 401) clearStaffSession();
     throw new Error(body?.error?.code || 'Không thể cập nhật chiến dịch.');
   }
-  return response.json();
+  const body = await response.json();
+  if (generation !== staffSessionVersion()) throw new Error('Session changed.');
+  return body;
 }
 function mockMode() {
   return import.meta.env.VITE_ORDER_MODE !== 'http';

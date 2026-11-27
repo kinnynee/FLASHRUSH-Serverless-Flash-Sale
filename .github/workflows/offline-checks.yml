@@ -21,6 +21,7 @@ jobs:
       - run: python -m pip install -r backend/requirements-lock.txt
       - run: python -B -m unittest discover -s backend -p 'test_*.py' -v
       - run: python -B -m unittest discover -s scripts/deploy -p 'test_*.py' -v
+      - run: python -B -m unittest discover -s scripts/ops -p 'test_*.py' -v
       - run: npm ci --prefix frontend
       - run: npm test --prefix frontend
       - run: npm run build --prefix frontend

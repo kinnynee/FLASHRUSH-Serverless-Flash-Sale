@@ -44,6 +44,7 @@ export interface DashboardSnapshot {
   updatedAt: string;
   orders: OrderMetrics;
   totalRevenue: number;
+  unknownRevenueOrders?: number;
   successRate: number;
   lowStockProducts: DashboardProduct[];
   orderRecords: OrderRecord[];

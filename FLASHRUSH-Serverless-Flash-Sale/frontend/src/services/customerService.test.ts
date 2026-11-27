@@ -2,20 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { customerService, CustomerApiError } from './customerService';
 import { accessToken, clearCustomerSession } from './customerAuth';
 
-vi.mock('./customerAuth', () => ({ accessToken: vi.fn(), clearCustomerSession: vi.fn() }));
+vi.mock('./customerAuth', () => ({ accessToken: vi.fn(), clearCustomerSession: vi.fn(), customerSessionVersion: () => 0 }));
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('VITE_API_BASE_URL', 'https://example.test');
   vi.mocked(accessToken).mockResolvedValue('verified-access');
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ version: 1, items: [] }), { status: 200 })));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({ version: 1, items: [] }), { status: 200 })));
 });
 describe('Customer service authorization and mutations', () => {
+  it('requests voucher eligibility using only cart version and selected line IDs', async () => {
+    await customerService.vouchers({ version: 2, lineIds: ['selected'] });
+    expect(fetch).toHaveBeenCalledWith('https://example.test/me/vouchers', expect.objectContaining({ method: 'POST', body: JSON.stringify({ version: 2, lineIds: ['selected'] }) }));
+  });
+  it('loads and saves the authenticated wallet without a client-supplied owner', async () => {
+    await customerService.vouchers();
+    expect(fetch).toHaveBeenCalledWith('https://example.test/me/vouchers', expect.objectContaining({ method: 'GET', headers: expect.objectContaining({ Authorization: 'Bearer verified-access' }) }));
+    await customerService.saveVoucher('FLASH10');
+    expect(fetch).toHaveBeenLastCalledWith('https://example.test/me/vouchers/save', expect.objectContaining({ method: 'POST', body: JSON.stringify({ code: 'FLASH10' }) }));
+  });
   it('requests a server quote for only selected lines without supplying a discount', async () => {
-    const body = { version: 4, lineIds: ['selected'], voucherCode: 'HAUMON', shippingMethod: 'STANDARD', paymentMethod: 'COD' };
+    const body = { version: 4, lineIds: ['selected'], voucherCode: 'FLASH10', shippingMethod: 'STANDARD', paymentMethod: 'COD' };
     await customerService.quote(body);
     expect(fetch).toHaveBeenCalledWith('https://example.test/me/checkout-quote', expect.objectContaining({ method: 'POST', body: JSON.stringify(body) }));
   });
   it('sends the reviewed total with the immutable checkout intent', async () => {
-    const body = { version: 4, lineIds: ['selected'], addressId: 'home', voucherCode: 'HAUMON', expectedTotal: 2291040 };
+    const body = { version: 4, lineIds: ['selected'], addressId: 'home', voucherCode: 'FLASH10', expectedTotal: 3500000 };
     await customerService.checkout(body, 'same-request');
     expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({ body: JSON.stringify(body), headers: { 'Idempotency-Key': 'same-request' } });
   });

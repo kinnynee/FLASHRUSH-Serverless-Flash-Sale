@@ -1,0 +1,24 @@
+{
+  "target": "CHOOSE_manual_OR_lab",
+  "account": "REPLACE_WITH_12_DIGIT_ACCOUNT",
+  "region": "REPLACE_WITH_REGION",
+  "nonProduction": true,
+  "resources": {
+    "ProductsTable": "REPLACE_WITH_EXPLICIT_ProductsTable",
+    "OrdersTable": "REPLACE_WITH_EXPLICIT_OrdersTable",
+    "CampaignsTable": "REPLACE_WITH_EXPLICIT_CampaignsTable",
+    "CustomersTable": "REPLACE_WITH_EXPLICIT_CustomersTable",
+    "BusinessTable": "REPLACE_WITH_EXPLICIT_BusinessTable",
+    "QueueUrl": "REPLACE_WITH_EXPLICIT_QueueUrl",
+    "ApiId": "REPLACE_WITH_EXPLICIT_ApiId",
+    "ApiUrl": "REPLACE_WITH_EXPLICIT_ApiUrl",
+    "ApiFunction": "REPLACE_WITH_EXPLICIT_ApiFunction",
+    "WorkerFunction": "REPLACE_WITH_EXPLICIT_WorkerFunction",
+    "UserPoolId": "REPLACE_WITH_EXPLICIT_UserPoolId",
+    "UserPoolClientId": "REPLACE_WITH_EXPLICIT_UserPoolClientId",
+    "AuthorizerId": "REPLACE_WITH_EXPLICIT_AuthorizerId",
+    "WebsiteBucket": "REPLACE_WITH_EXPLICIT_WebsiteBucket",
+    "DistributionId": "REPLACE_WITH_EXPLICIT_DistributionId",
+    "WebsiteUrl": "REPLACE_WITH_EXPLICIT_WebsiteUrl"
+  }
+}

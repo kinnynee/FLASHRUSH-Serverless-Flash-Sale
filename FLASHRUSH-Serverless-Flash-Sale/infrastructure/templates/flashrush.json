@@ -29,7 +29,17 @@
         ],
         "SSESpecification": {
           "SSEEnabled": true
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "Orders": {
@@ -51,7 +61,17 @@
         ],
         "SSESpecification": {
           "SSEEnabled": true
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "Campaigns": {
@@ -73,7 +93,17 @@
         ],
         "SSESpecification": {
           "SSEEnabled": true
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "DLQ": {
@@ -89,7 +119,17 @@
               "Fn::Sub": "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:flashrush-lab-orders"
             }
           ]
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "Queue": {
@@ -108,7 +148,17 @@
             ]
           },
           "maxReceiveCount": 5
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "ApiRole": {
@@ -451,6 +501,16 @@
         },
         "Architectures": [
           "arm64"
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
         ]
       },
       "DependsOn": "ApiLog"
@@ -516,6 +576,16 @@
         },
         "Architectures": [
           "arm64"
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
         ]
       },
       "DependsOn": "WorkerLog"
@@ -572,6 +642,10 @@
             "authorization"
           ],
           "MaxAge": 300
+        },
+        "Tags": {
+          "Project": "FLASHRUSH",
+          "Environment": "lab"
         }
       }
     },
@@ -725,7 +799,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /admin/campaigns",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -736,7 +810,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route7": {
@@ -746,7 +826,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/campaigns/{campaignId}",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -757,7 +837,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route8": {
@@ -767,7 +853,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "DELETE /admin/campaigns/{campaignId}",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -778,7 +864,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route9": {
@@ -788,7 +880,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/overview",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -799,7 +891,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route10": {
@@ -809,7 +907,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/orders",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -820,7 +918,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route11": {
@@ -830,7 +934,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /admin/products",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -841,7 +945,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route12": {
@@ -851,7 +961,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/products/{productId}",
-        "AuthorizationType": "AWS_IAM",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -862,7 +972,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "Route13": {
@@ -872,7 +988,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/monitoring",
-        "AuthorizationType": "NONE",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -883,7 +999,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "AccessLog": {
@@ -950,7 +1072,17 @@
               }
             }
           ]
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "OAC": {
@@ -973,7 +1105,7 @@
           "Comment": "Rewrite application routes only; preserve asset errors",
           "Runtime": "cloudfront-js-2.0"
         },
-        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring|cart|account|auth|account)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
+        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(staff|products|checkout|orders|admin|monitoring|cart|account|auth|account)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
       }
     },
     "Distribution": {
@@ -1026,7 +1158,17 @@
           "ViewerCertificate": {
             "CloudFrontDefaultCertificate": true
           }
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "WebsitePolicy": {
@@ -1253,7 +1395,11 @@
             "Name": "name",
             "Mutable": true
           }
-        ]
+        ],
+        "UserPoolTags": {
+          "Project": "FLASHRUSH",
+          "Environment": "lab"
+        }
       }
     },
     "CustomerClient": {
@@ -1322,7 +1468,17 @@
         },
         "PointInTimeRecoverySpecification": {
           "PointInTimeRecoveryEnabled": true
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "CustomerAuthorizer": {
@@ -1645,6 +1801,87 @@
         }
       }
     },
+    "CustomerRoute11": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/vouchers",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute12": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /me/vouchers",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute13": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /me/vouchers/save",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
     "Business": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
@@ -1664,7 +1901,17 @@
         ],
         "SSESpecification": {
           "SSEEnabled": true
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "FLASHRUSH"
+          },
+          {
+            "Key": "Environment",
+            "Value": "lab"
+          }
+        ]
       }
     },
     "GroupOwner": {
@@ -1840,7 +2087,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute7": {
@@ -1860,7 +2114,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute9": {
@@ -1880,7 +2141,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute10": {
@@ -1900,7 +2168,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute11": {
@@ -1920,7 +2195,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute12": {
@@ -1940,7 +2222,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute13": {
@@ -1960,7 +2249,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute14": {
@@ -1980,7 +2276,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute15": {
@@ -2000,7 +2303,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute16": {
@@ -2020,7 +2330,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "VoucherRoute0": {
@@ -2030,7 +2347,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "GET /admin/vouchers",
-        "AuthorizationType": "NONE",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -2041,7 +2358,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "VoucherRoute1": {
@@ -2051,7 +2374,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "POST /admin/vouchers",
-        "AuthorizationType": "NONE",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -2062,7 +2385,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "VoucherRoute2": {
@@ -2072,7 +2401,7 @@
           "Ref": "HttpApi"
         },
         "RouteKey": "PATCH /admin/vouchers",
-        "AuthorizationType": "NONE",
+        "AuthorizationType": "JWT",
         "Target": {
           "Fn::Join": [
             "/",
@@ -2083,7 +2412,13 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     }
   },
@@ -2174,6 +2509,26 @@
     "UserPoolClientId": {
       "Value": {
         "Ref": "CustomerClient"
+      }
+    },
+    "ApiId": {
+      "Value": {
+        "Ref": "HttpApi"
+      }
+    },
+    "ApiFunction": {
+      "Value": {
+        "Ref": "Api"
+      }
+    },
+    "WorkerFunction": {
+      "Value": {
+        "Ref": "Worker"
+      }
+    },
+    "AuthorizerId": {
+      "Value": {
+        "Ref": "CustomerAuthorizer"
       }
     }
   }

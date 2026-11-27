@@ -1,4 +1,4 @@
-import os,unittest,uuid
+import os,unittest,uuid,time
 from unittest.mock import Mock,patch
 import boto3
 from moto import mock_aws
@@ -10,8 +10,9 @@ class Permissions(unittest.TestCase):
    self.assertEqual(business.authorize({'roles':[role]},'GET',path),allowed)
  def test_identity_uses_cognito(self):
   c=Mock();c.get_user.return_value={'Username':'real','UserAttributes':[{'Name':'sub','Value':'real-id'}]};c.admin_list_groups_for_user.return_value={'Groups':[{'GroupName':'warehouse'}]};c.admin_get_user.return_value={'Enabled':True,'UserAttributes':[{'Name':'sub','Value':'real-id'}]}
-  with patch.dict(os.environ,USER_POOL_ID='pool'),patch.object(business,'cognito',return_value=c):
-   self.assertEqual(business.identity({'headers':{'Authorization':'Bearer test'}})['id'],'real-id')
+  claims={'sub':'real-id','iss':'https://issuer.test','client_id':'client','token_use':'access','exp':time.time()+600,'scope':'aws.cognito.signin.user.admin'}
+  with patch.dict(os.environ,USER_POOL_ID='pool',USER_POOL_CLIENT_ID='client',CUSTOMER_ISSUER='https://issuer.test'),patch.object(business,'cognito',return_value=c):
+   self.assertEqual(business.identity({'headers':{'Authorization':'Bearer test'},'requestContext':{'authorizer':{'jwt':{'claims':claims}}}})['id'],'real-id')
   c.get_user.assert_called_once_with(AccessToken='test')
 
  def test_signup_does_not_grant_staff_groups(self):

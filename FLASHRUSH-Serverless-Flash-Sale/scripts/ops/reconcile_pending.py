@@ -3,11 +3,13 @@ import json
 import os
 import sys
 import time
+import importlib
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'deploy'))
 from lab_config import parser, connect, stack_outputs
+from target_config import load, validate_runtime
 import boto3
 
 
@@ -36,6 +38,7 @@ def inspect(item, epoch, min_age):
 def main():
     cli = parser(__doc__)
     cli.add_argument('--namespace', choices=['flashrush-manual'])
+    cli.add_argument('--inventory', type=Path, help='Explicit manual/lab resource inventory; never infer names')
     cli.add_argument('--output', type=Path)
     actions = cli.add_mutually_exclusive_group()
     actions.add_argument('--resend', action='store_true')
@@ -45,24 +48,32 @@ def main():
     args = cli.parse_args()
     if args.min_age_seconds < 30:
         cli.error('min-age-seconds must be >= 30')
+    inventory = getattr(args, 'inventory', None)
+    if args.namespace and not inventory:
+        cli.error('INCOMPLETE_CONFIGURATION: manual recovery requires --inventory')
+    config = load(inventory, 'runtime') if inventory else None
+    if config:
+        if args.namespace and config['target'] != 'manual':
+            cli.error('INCOMPLETE_CONFIGURATION: namespace and inventory disagree')
+        args.account, args.region = config['account'], config['region']
     session = connect(args)
-    if args.namespace:
-        prefix = args.namespace
-        outputs = {'ProductsTable': prefix+'-products', 'OrdersTable': prefix+'-orders',
-                   'QueueUrl': session.client('sqs').get_queue_url(QueueName=prefix+'-orders')['QueueUrl']}
-        for name in ('ProductsTable', 'OrdersTable'):
-            arn = session.client('dynamodb').describe_table(TableName=outputs[name])['Table']['TableArn']
-            if arn.split(':')[3:5] != [args.region, args.account]:
-                raise SystemExit('Table target mismatch')
+    if config:
+        outputs = config['resources']
     else:
         outputs = stack_outputs(session, args)
-    os.environ['CAMPAIGNS_TABLE'] = (args.namespace+'-campaigns') if args.namespace else outputs['CampaignsTable']
+    validate_runtime(session, outputs, args.account, args.region, config['target'] if config else None)
+    for name in ('CUSTOMERS_TABLE', 'BUSINESS_TABLE', 'CAMPAIGNS_TABLE', 'PRODUCTS_TABLE', 'ORDERS_TABLE', 'QUEUE_URL'):
+        os.environ.pop(name, None)
+    os.environ['CAMPAIGNS_TABLE'] = outputs['CampaignsTable']
     os.environ.update(PRODUCTS_TABLE=outputs['ProductsTable'], ORDERS_TABLE=outputs['OrdersTable'], QUEUE_URL=outputs['QueueUrl'])
     if outputs.get('CustomersTable'):
         os.environ['CUSTOMERS_TABLE'] = outputs['CustomersTable']
+    if outputs.get('BusinessTable'):
+        os.environ['BUSINESS_TABLE'] = outputs['BusinessTable']
     boto3.DEFAULT_SESSION = session
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
     import app
+    importlib.reload(app)
     kwargs, pending = {}, []
     while True:
         page = app.orders.scan(**kwargs)
@@ -72,40 +83,63 @@ def main():
         kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
     unresolved = 0
     reports = []
+    groups = {}
     for item in pending:
         report = inspect(item, time.time(), args.min_age_seconds)
         report['action'] = 'investigate' if report['overdue'] else 'wait'
         if item.get('ownerId'):
-            if (args.resend or args.recover) and report['overdue']:
-                import customer
-                group = customer.read(item['ownerId'], 'CHECKOUT#' + item['checkoutId'])
-                if args.recover:
-                    customer.process_checkout({'userId': item['ownerId'], 'checkoutId': item['checkoutId']})
-                else:
-                    customer.enqueue_checkout(group)
-                report['action'] = 'customer_group_reconciled'
-            current = app.read_order(item['orderId'])
-            unresolved += int(report['overdue'] and current['status'] == 'PENDING')
+            group_key = (item['ownerId'], item.get('checkoutId'))
+            if (args.resend or args.recover) and report['overdue'] and report['ageSeconds'] is not None:
+                if group_key not in groups:
+                    try:
+                        import customer
+                        if not group_key[1]:
+                            raise ValueError('Missing checkoutId')
+                        group = customer.read(group_key[0], 'CHECKOUT#' + group_key[1])
+                        if not group:
+                            raise ValueError('Missing checkout group')
+                        if args.recover:
+                            customer.process_checkout({'userId': group_key[0], 'checkoutId': group_key[1]})
+                            groups[group_key] = {'action': 'recovery_attempted'}
+                        else:
+                            customer.enqueue_checkout(group)
+                            groups[group_key] = {'action': 'enqueue_attempted'}
+                    except Exception as exc:
+                        groups[group_key] = {'action': 'retry_required', 'errorType': type(exc).__name__}
+                report.update(groups[group_key])
+            try:
+                current = app.read_order(item['orderId'])
+                report['status'] = current['status'] if current else 'MISSING'
+            except Exception as exc:
+                report.update(status='UNKNOWN', errorType=type(exc).__name__)
+            unresolved += int(report['overdue'] and report['status'] not in ('CONFIRMED', 'OUT_OF_STOCK', 'FAILED'))
             reports.append(report)
             print(json.dumps(report))
             continue
         if args.resend and report['eligible']:
-            report['action'] = 'enqueued' if app.enqueue(item) else 'unresolved'
+            try:
+                report['action'] = 'enqueue_attempted' if app.enqueue(item) else 'unresolved'
+            except Exception as exc:
+                report.update(action='retry_required', errorType=type(exc).__name__)
         if args.recover and report['overdue'] and report['ageSeconds'] is not None:
             try:
                 if isinstance(item['quantity'], bool) or item['quantity'] != int(item['quantity']) or not 1 <= int(item['quantity']) <= app.MAX_QUANTITY:
                     raise ValueError('Invalid quantity')
                 app.process({'schemaVersion': '1.0', **{k: item[k] for k in ('orderId', 'productId', 'quantity')}})
-                report['action'] = 'recovered'
+                report['action'] = 'recovery_attempted'
             except Exception as exc:
                 report['action'] = 'retry_required'
                 report['errorType'] = type(exc).__name__
         # A successful resend is not proof of terminal completion. Rerun inspection.
-        current = app.read_order(item['orderId'])
-        unresolved += int(report['overdue'] and current['status'] == 'PENDING')
+        try:
+            current = app.read_order(item['orderId'])
+            report['status'] = current['status'] if current else 'MISSING'
+        except Exception as exc:
+            report.update(status='UNKNOWN', errorType=type(exc).__name__)
+        unresolved += int(report['overdue'] and report['status'] not in ('CONFIRMED', 'OUT_OF_STOCK', 'FAILED'))
         reports.append(report)
         print(json.dumps(report))
-    summary = dict(pendingCount=len(pending), overdueUnresolved=unresolved, dryRun=not (args.resend or args.recover), orders=reports)
+    summary = dict(pendingCount=len(pending), groupsAttempted=len(groups), overdueUnresolved=unresolved, dryRun=not (args.resend or args.recover), orders=reports)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(summary, indent=2), encoding='utf-8')

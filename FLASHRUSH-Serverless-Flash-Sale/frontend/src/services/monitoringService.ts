@@ -1,4 +1,5 @@
 import { adminHeaders } from "./adminAuth";
+import { staffSessionVersion, clearStaffSession } from './accountService';
 
 export interface MetricPoint {
   at: string;
@@ -109,6 +110,7 @@ export async function getMonitoring(
 ): Promise<MonitoringSnapshot> {
   const base = import.meta.env.VITE_API_BASE_URL;
   if (!base) throw new Error("Chưa cấu hình API giám sát AWS.");
+  const generation = staffSessionVersion();
   const response = await fetch(
     `${base.replace(/\/$/, "")}/admin/monitoring?minutes=${minutes}`,
     {
@@ -117,8 +119,10 @@ export async function getMonitoring(
     },
   );
   if (!response.ok) {
+    if (generation !== staffSessionVersion()) throw new Error('Session changed.');
+    if (response.status === 401) clearStaffSession();
     if (response.status === 401 || response.status === 403)
-      throw new Error("Nhập Admin API key hợp lệ để xem số liệu CloudWatch.");
+      throw new Error("Đăng nhập tài khoản nhân viên có quyền xem số liệu CloudWatch.");
     throw new Error(
       `Chưa đọc được CloudWatch (HTTP ${response.status}). Vui lòng thử lại.`,
     );
@@ -126,5 +130,7 @@ export async function getMonitoring(
   if (!response.headers.get("content-type")?.includes("application/json")) {
     throw new Error("API giám sát trả về sai định dạng. Kiểm tra proxy /api và khởi động lại server local.");
   }
-  return parseMonitoring(await response.json());
+  const data = await response.json();
+  if (generation !== staffSessionVersion()) throw new Error('Session changed.');
+  return parseMonitoring(data);
 }

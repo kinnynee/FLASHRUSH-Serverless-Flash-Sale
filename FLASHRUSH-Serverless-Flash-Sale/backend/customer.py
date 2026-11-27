@@ -162,13 +162,22 @@ def save_cart(user, payload):
 
 
 def order_view(item):
-    return {**app.public_order(item), 'item': item['item'], 'checkoutId': item['checkoutId'],
-            'address': item['address'], 'failureReason': item.get('failureReason'), 'unitPrice': item['unitPrice'], **{k:item[k] for k in ('subtotal','discount','totalAmount','voucherCode') if k in item}}
+    return {**app.public_order(item), 'checkoutId': item.get('checkoutId'),
+            'address': item.get('address'), 'failureReason': item.get('failureReason'),
+            **{k:item[k] for k in ('voucherCode',) if k in item}}
+
+
+def index_write(item):
+    user = item.get('ownerId') or item.get('customerId')
+    if not user:
+        raise ValueError('Authenticated owner required')
+    reference = {**key(user, 'ORDER#' + item['createdAt'] + '#' + item['orderId']), 'orderId': item['orderId']}
+    return {'Put': {'TableName': table().name, 'Item': app.values(reference)}}
 
 
 def owned_order(user, oid):
     item = app.read_order(oid)
-    if not item or item.get('ownerId') != user:
+    if not item or (item.get('ownerId') or item.get('customerId')) != user:
         raise Problem('ORDER_NOT_FOUND', 404)
     return item
 
@@ -251,7 +260,7 @@ def validate_lines(lines):
 def checkout_options():
     return {'shipping': [{'id': 'STANDARD', 'name': 'Giao hàng tiêu chuẩn', 'fee': 0}],
             'payments': [{'id': 'COD', 'name': 'Thanh toán khi nhận hàng (COD)'}],
-            'voucher': {'code': 'HAUMON', 'minimum': 3600000, 'basisPoints': 3636}}
+            'voucherPolicy': {'maxPerCheckout': 1, 'perCustomerLimit': 1, 'stackable': False}}
 
 
 def selected_cart(user, payload):
@@ -275,11 +284,8 @@ def price_checkout(lines, products, payload, user=None):
     if payload.get('paymentMethod', 'COD') != 'COD':
         raise Problem('INVALID_PAYMENT_METHOD')
     subtotal = sum(products[line['productId']]['price'] * line['quantity'] for line in lines)
-    if voucher == 'HAUMON' and subtotal < 3600000:
-        raise Problem('VOUCHER_MINIMUM_NOT_MET', 409)
-    # Integer VND: round the total discount down, then allocate by cumulative value.
-    discount = int(subtotal * 3636 // 10000) if voucher == 'HAUMON' else 0
-    if voucher and voucher != 'HAUMON':
+    discount = 0
+    if voucher:
         from vouchers import quote, VoucherError
         try: discount=quote(voucher,user,subtotal)['discount']
         except VoucherError as exc: raise Problem(str(exc),409)
@@ -336,7 +342,7 @@ def create_checkout(user, payload, headers):
     elif pricing['voucherCode']:
         raise Problem('QUOTE_REQUIRED', 409)
     voucher=None
-    if pricing['voucherCode'] and pricing['voucherCode'] != 'HAUMON':
+    if pricing['voucherCode']:
         from vouchers import quote, VoucherError
         try: voucher=quote(pricing['voucherCode'],user,pricing['subtotal'])
         except VoucherError as exc: raise Problem(str(exc),409)
@@ -358,6 +364,7 @@ def create_checkout(user, payload, headers):
                 'discountAmount': line_discount, 'totalAmount': line_subtotal - line_discount,
                 'voucherCode': pricing['voucherCode']}
         order = {'orderId': oid, 'ownerId': user, 'checkoutId': checkout_id, 'item': item, 'address': address,
+                 'shippingFee': 0, 'currency': 'VND',
                  'totalAmount': item['totalAmount'], 'paymentMethod': pricing['paymentMethod'],
                  'shippingMethod': pricing['shippingMethod'],
                  'productId': line['productId'], 'quantity': line['quantity'], 'unitPrice': product['price'],
@@ -449,6 +456,27 @@ def route(event):
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise Problem('INVALID_REQUEST')
+        if path == '/me/vouchers' and method in ('GET', 'POST'):
+            from vouchers import catalog
+            subtotal, issue = None, None
+            if method == 'POST':
+                if set(payload) != {'version', 'lineIds'}:
+                    raise Problem('INVALID_SELECTION')
+                _, lines = selected_cart(user, payload)
+                try:
+                    products, _, _ = validate_lines(lines)
+                    subtotal = sum(products[line['productId']]['price'] * line['quantity'] for line in lines)
+                except Problem as exc:
+                    issue = exc.code
+            return app.response(200, catalog(user, subtotal, issue))
+        if path == '/me/vouchers/save' and method == 'POST':
+            from vouchers import save, VoucherError
+            if set(payload) != {'code'}:
+                raise Problem('INVALID_REQUEST')
+            try:
+                return app.response(200, save(payload['code'], user))
+            except VoucherError as exc:
+                raise Problem(str(exc), 409)
         if path == '/me/vouchers/quote' and method == 'POST':
             ids=payload.get('lineIds');cart=cart_record(user)
             if not isinstance(ids,list) or not ids or len(ids)>10 or any(not isinstance(i,str) for i in ids) or len(set(ids))!=len(ids):raise Problem('INVALID_SELECTION')

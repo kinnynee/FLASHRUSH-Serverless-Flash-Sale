@@ -33,7 +33,7 @@ describe("account boundary", () => {
     await expect(businessRequest("/admin/users")).rejects.toThrow("FORBIDDEN");
   });
   it("retains only an access token after successful login", async () => {
-    const store = { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn() };
+    const store = { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn(), removeItem: vi.fn() };
     vi.stubGlobal("sessionStorage", store);
     vi.stubEnv("VITE_API_BASE_URL", "https://example.test");
     vi.stubGlobal(

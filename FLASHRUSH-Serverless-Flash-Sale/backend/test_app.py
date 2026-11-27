@@ -44,9 +44,14 @@ class BackendTests(unittest.TestCase):
     def request(self, method, path, payload=None, headers=None):
         parsed = urlsplit(path)
         query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
-        result = self.app.api({'requestContext': {'http': {'method': method}}, 'rawPath': parsed.path,
-            'queryStringParameters': query, 'headers': headers or {},
-            'body': json.dumps(payload) if payload is not None else None}, None)
+        # Endpoint tests use a verified owner; identity validation has dedicated tests.
+        import business
+        owner = {'id': 'staff', 'roles': ['owner']}
+        authenticated = (headers or {}).get('Authorization') == 'Bearer verified-staff'
+        with patch.object(business, 'identity', return_value=owner if authenticated else None):
+            result = self.app.api({'requestContext': {'http': {'method': method}}, 'rawPath': parsed.path,
+                'queryStringParameters': query, 'headers': headers or {},
+                'body': json.dumps(payload) if payload is not None else None}, None)
         return result, json.loads(result['body'])
 
     def drain(self):
@@ -73,7 +78,7 @@ class BackendTests(unittest.TestCase):
         with patch('monitoring.snapshot') as read:
             self.assertEqual(self.request('GET', '/admin/monitoring')[0]['statusCode'], 401)
             read.assert_not_called()
-            headers = {'X-Admin-Key': self.app.ADMIN_API_KEY}
+            headers = {'Authorization': 'Bearer verified-staff'}
             self.assertEqual(self.request('GET', '/admin/monitoring?minutes=999', headers=headers)[0]['statusCode'], 400)
             read.assert_not_called()
             read.return_value = {'source': 'CLOUDWATCH'}
@@ -243,7 +248,7 @@ class BackendTests(unittest.TestCase):
         start = datetime.now(timezone.utc) + timedelta(days=1)
         payload = {'name': 'Tomorrow', 'startTime': start.isoformat(),
             'endTime': (start + timedelta(hours=2)).isoformat(), 'productIds': ['sku'], 'maxQtyPerOrder': 3}
-        auth = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        auth = {'Authorization': 'Bearer verified-staff'}
         result, created = self.request('POST', '/admin/campaigns', payload, auth)
         self.assertEqual(result['statusCode'], 201)
         campaign_id = created['campaignId']
@@ -273,7 +278,7 @@ class BackendTests(unittest.TestCase):
             'unitPrice': 100, 'status': 'CONFIRMED', 'createdAt': '2026-01-02T00:00:00+00:00', 'updatedAt': '2026-01-02T00:00:00+00:00'})
         self.app.orders.put_item(Item={'orderId': 'pending', 'productId': 'sku', 'quantity': 1,
             'unitPrice': 100, 'status': 'PENDING', 'createdAt': '2026-01-03T00:00:00+00:00', 'updatedAt': '2026-01-03T00:00:00+00:00'})
-        result, body = self.request('GET', '/admin/overview', headers={'X-Admin-Key': 'test-admin-secret-32-characters'})
+        result, body = self.request('GET', '/admin/overview', headers={'Authorization': 'Bearer verified-staff'})
         self.assertEqual(result['statusCode'], 200)
         self.assertEqual(body['totalRevenue'], 200)
         self.assertEqual(body['ordersByStatus']['CONFIRMED'], 1)
@@ -285,7 +290,7 @@ class BackendTests(unittest.TestCase):
         for index in range(3):
             self.app.orders.put_item(Item={'orderId': f'order-{index}', 'productId': 'sku', 'quantity': 1,
                 'status': 'PENDING' if index < 2 else 'FAILED', 'createdAt': f'2026-01-0{index+1}T00:00:00+00:00', 'updatedAt': '2026-01-01T00:00:00+00:00'})
-        headers = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        headers = {'Authorization': 'Bearer verified-staff'}
         result, first = self.request('GET', '/admin/orders', headers=headers)
         self.assertEqual(result['statusCode'], 200)
         self.assertEqual(len(first['items']), 3)
@@ -301,7 +306,7 @@ class BackendTests(unittest.TestCase):
         self.assertNotEqual(page['items'][0]['orderId'], second['items'][0]['orderId'])
 
     def test_admin_product_stock_delta_is_atomic_and_cannot_go_negative(self):
-        headers = {'X-Admin-Key': 'test-admin-secret-32-characters'}
+        headers = {'Authorization': 'Bearer verified-staff'}
         product = {'productId': 'new-sku', 'name': 'New', 'description': 'Desc', 'category': 'Test',
             'price': 90, 'originalPrice': 100, 'stock': 5, 'initialStock': 5, 'images': ['/new.jpg'],
             'isFlashSale': True, 'saleStartsAt': (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat(),

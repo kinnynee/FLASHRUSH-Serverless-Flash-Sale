@@ -247,7 +247,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute7": {
@@ -267,7 +274,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute8": {
@@ -307,7 +321,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute10": {
@@ -327,7 +348,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute11": {
@@ -347,7 +375,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute12": {
@@ -367,7 +402,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute13": {
@@ -387,7 +429,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute14": {
@@ -407,7 +456,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute15": {
@@ -427,7 +483,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     },
     "BusinessRoute16": {
@@ -447,7 +510,14 @@
               }
             ]
           ]
-        }
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ]
       }
     }
   },

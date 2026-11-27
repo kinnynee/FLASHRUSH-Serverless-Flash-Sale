@@ -1,5 +1,7 @@
 # Bộ chiến dịch mua sắm 2026–2027
 
+> **Cập nhật 27/11/2026, 20:27 UTC+7:** Đã áp dụng đủ 20 chiến dịch lên `flashrush-lab-campaigns` trong account `303278700480`, region `us-east-1`. DynamoDB và API đều xác nhận tổng cộng 25 chiến dịch, gồm 5 chiến dịch cũ giữ nguyên và 20 chiến dịch mới UPCOMING. Đã triển khai riêng bản sửa selector trên Lambda API; chưa triển khai toàn bộ integration hardening. Giá và tồn kho không thay đổi. Xem [báo cáo triển khai](../../docs/operations/campaign-release-2026-11-27.md). Các ghi chú “chưa áp dụng/chưa deploy” bên dưới ghi lại trạng thái chuẩn bị trước lần triển khai này.
+
 Đã chuẩn bị local, chưa áp dụng lên AWS. Dữ liệu mới gồm 20 chiến dịch, dùng 11 sản phẩm chính đã tồn tại và còn hàng tại thời điểm chụp snapshot. Không dùng sản phẩm load-test/telemetry hoặc loa Portable Mini đang hết hàng.
 
 ## Môi trường và bằng chứng

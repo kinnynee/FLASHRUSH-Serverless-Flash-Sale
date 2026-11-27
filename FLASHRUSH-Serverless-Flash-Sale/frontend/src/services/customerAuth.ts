@@ -8,10 +8,11 @@ const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined;
 const region = import.meta.env.VITE_COGNITO_REGION as string | undefined;
 export const customerConfigured = Boolean(clientId && region && import.meta.env.VITE_API_BASE_URL);
 const client = new CognitoIdentityProviderClient({ region: region || 'us-east-1' });
-const storageKey = 'flashrush.customer.session.v1';
+const storageKey = `flashrush.customer.session.v2:${import.meta.env.VITE_API_BASE_URL}:${clientId}`;
 type Session = { access: string; refresh: string; expires: number };
 export type CustomerIdentity = { sub: string; email: string; name: string };
 let generation = 0;
+export const customerSessionVersion = () => generation;
 let refreshing: Promise<string> | undefined;
 function read(): Session | null {
   try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch { return null; }
@@ -21,6 +22,7 @@ function required() {
 }
 export function clearCustomerSession() {
   generation++;
+  refreshing = undefined;
   sessionStorage.removeItem(storageKey);
   window.dispatchEvent(new Event('customer-session-expired'));
 }
@@ -40,28 +42,32 @@ export async function accessToken(): Promise<string> {
       }).catch(error => {
         if (current === generation && error instanceof Error && error.name === 'NotAuthorizedException') clearCustomerSession();
         throw error;
-      }).finally(() => { refreshing = undefined; });
+      }).finally(() => { if (current === generation) refreshing = undefined; });
   }
   return refreshing;
 }
 export async function currentCustomer(): Promise<CustomerIdentity | null> {
   if (!customerConfigured || !read()) return null;
+  const current = generation;
   try {
     const result = await client.send(new GetUserCommand({ AccessToken: await accessToken() }));
+    if (current !== generation) throw new Error('Phiên đăng nhập đã thay đổi.');
     const attrs = Object.fromEntries((result.UserAttributes || []).map(a => [a.Name!, a.Value || '']));
     if (!attrs.sub || attrs.email_verified !== 'true') throw new Error('Vui lòng xác minh email trước khi đăng nhập.');
     return { sub: attrs.sub, email: attrs.email, name: attrs.name || attrs.email };
   } catch (error) {
-    if (error instanceof Error && error.name === 'NotAuthorizedException') { clearCustomerSession(); return null; }
+    if (current === generation && error instanceof Error && error.name === 'NotAuthorizedException') { clearCustomerSession(); return null; }
     throw error;
   }
 }
 export async function signIn(email: string, password: string) {
   required();
+  clearCustomerSession();
+  const current = generation;
   const result = await client.send(new InitiateAuthCommand({ ClientId: clientId, AuthFlow: 'USER_PASSWORD_AUTH', AuthParameters: { USERNAME: email, PASSWORD: password } }));
+  if (current !== generation) throw new Error('Phiên đăng nhập đã thay đổi.');
   const auth = result.AuthenticationResult;
   if (!auth?.AccessToken || !auth.RefreshToken) throw new Error('Tài khoản yêu cầu bước xác minh bổ sung. Vui lòng liên hệ hỗ trợ.');
-  generation++;
   sessionStorage.setItem(storageKey, JSON.stringify({ access: auth.AccessToken, refresh: auth.RefreshToken, expires: Date.now() + (auth.ExpiresIn || 600) * 1000 }));
   return currentCustomer();
 }
@@ -85,6 +91,7 @@ export async function changePassword(previous: string, proposed: string) {
   await client.send(new ChangePasswordCommand({ AccessToken: await accessToken(), PreviousPassword: previous, ProposedPassword: proposed }));
 }
 export async function signOut() {
-  try { await client.send(new GlobalSignOutCommand({ AccessToken: await accessToken() })); }
-  finally { clearCustomerSession(); }
+  const token = read()?.access;
+  clearCustomerSession();
+  if (token) await client.send(new GlobalSignOutCommand({ AccessToken: token }));
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useOutletContext, useLocation } from 'react-router-dom';
 import { dashboardService } from '../../services/dashboardService';
 import type { DashboardScenario, DashboardSnapshot } from '../../types/dashboard';
+import { StaffGate } from '../admin/StaffGate';
 
 type DashboardResult =
   | { status: 'loading' }
@@ -34,7 +35,12 @@ function readScenario(): DashboardScenario {
 }
 
 export function DashboardLayout() {
-  const monitoring = useLocation().pathname === '/admin/monitoring';
+  return import.meta.env.VITE_ORDER_MODE === 'http' ? <StaffGate><DashboardContent /></StaffGate> : <DashboardContent />;
+}
+
+function DashboardContent() {
+  const pathname = useLocation().pathname;
+  const monitoring = ['/admin/monitoring', '/admin/inventory', '/admin/users', '/admin/customers', '/admin/vouchers'].includes(pathname);
   const [request, setRequest] = useState(() => ({ scenario: readScenario() }));
   const [result, setResult] = useState<DashboardResult>({ status: 'loading' });
 

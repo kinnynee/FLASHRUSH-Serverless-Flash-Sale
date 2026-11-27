@@ -1,3 +1,4 @@
+import { orderTotal, displayOrderPrice } from '../../utils/orderPrice';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -151,7 +152,7 @@ export function AdminOrdersTable() {
         <button type="button" className="dash-text-link" disabled={loading} onClick={() => setVersion(value => value + 1)}>Làm mới</button></div>
     </div>
     {error && <p className="campaign-error" role="alert">{error}</p>}{loading ? <p role="status">Đang tải đơn hàng...</p> : orders.length === 0 ? <EmptyState title="Chưa có đơn hàng" description="Không có đơn hàng phù hợp bộ lọc." /> :
-      <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{formatPrice(order.item.totalAmount ?? order.totalAmount ?? order.item.unitPrice * order.item.quantity)}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
+      <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{displayOrderPrice(orderTotal(order.item))}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
     {!loading && totalPages > 1 && <div className="dash-pagination">
       <span className="dash-pagination-count">{totalCount.toLocaleString('vi-VN')} đơn hàng</span>
       <nav aria-label="Phân trang đơn hàng" className="dash-pagination-controls">
