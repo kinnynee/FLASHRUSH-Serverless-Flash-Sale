@@ -348,3 +348,149 @@
 .stock-label.is-low { background: #fffbeb; color: #92400e; }
 .stock-label.is-empty { background: #fff1f2; color: #be123c; }
 .voucher-search { border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 7px; margin: 16px 0; }
+
+/* Admin UI aligned with the Storefront design system.  Navigation labels and
+   route structure stay unchanged; these rules only refine presentation. */
+.dash {
+  --dash-bg: #f8fafc;
+  --dash-border: rgba(203, 213, 225, .8);
+  --dash-neutral: #475569;
+  background: #f8fafc;
+}
+.dash-admin-main { background: #f8fafc; min-height: calc(100vh - 60px); }
+.dash-sidebar { background: #fff; border-right-color: #e2e8f0; box-shadow: 2px 0 12px rgba(15, 23, 42, .025); }
+.dash-sidebar-label { color: #64748b; }
+.dash-nav a { border-radius: 8px; color: #475569; }
+.dash-nav a:hover, .dash-nav a.active { color: #be123c; background: #fff1f2; }
+.dash-sidebar .dash-nav a.active { box-shadow: inset 3px 0 0 #e11d48; font-weight: 750; }
+.dash-admin-header { background: #fff; border-bottom-color: #e2e8f0; }
+.dash-admin-header h1, .dash-heading h1 { color: #0f172a; font-weight: 800; }
+.dash-admin-header h1::after { content: ''; display: block; width: 34px; height: 3px; margin-top: 7px; border-radius: 99px; background: #e11d48; }
+.dash-card { background: #fff; border: 1px solid rgba(203, 213, 225, .8); border-radius: 12px; box-shadow: 0 2px 8px rgba(15, 23, 42, .04); }
+.dash-kpi, .dash-table-card, .business-table, .account-form, .dash-order-detail { border-top: 4px solid #e11d48; }
+.dash-kpi { padding-top: 14px; }
+.dash-kpi-value { color: #e11d48; }
+.dash-kpi.dash-green .dash-kpi-value, .dash-kpi.dash-red .dash-kpi-value { color: #e11d48; }
+.dash-icon, .dash-admin-shortcut-icon { color: #be123c; background: #fff1f2; }
+.dash-admin-shortcut:hover { border-color: #fda4af; box-shadow: 0 10px 24px rgba(225, 29, 72, .08); }
+.dash-admin-shortcut strong { color: #0f172a; }
+.dash-admin-shortcut-arrow, .dash-price, .dash-text-link, .dash-detail-link { color: #be123c; }
+.dash-detail-link { background: #fff1f2; border-radius: 8px; }
+.dash-detail-link:hover { background: #ffe4e6; }
+.dash-table-card, .business-table { padding: 20px; }
+.dash-scroll-table, .business-table { overflow-x: auto; }
+.dash-scroll-table table, .business-table table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.dash-scroll-table thead, .business-table thead { background: #f8fafc; }
+.dash-scroll-table th, .dash-scroll-table td, .business-table th, .business-table td { border-bottom: 1px solid #f1f5f9; padding: 12px 11px; }
+.dash-scroll-table thead th, .business-table thead th { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.dash-scroll-table tbody tr:hover, .business-table tbody tr:hover { background: rgba(255, 241, 242, .55); }
+.dash-scroll-table tbody tr:last-child > *, .business-table tbody tr:last-child > * { border-bottom: 0; }
+.dash-table-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.button { border-radius: 8px; font-weight: 650; }
+.button-primary { background: #e11d48; }
+.button-primary:hover:not(:disabled) { background: #be123c; }
+.button-secondary { border: 1px solid #fecdd3; color: #be123c; background: rgba(255, 241, 242, .65); }
+.button-secondary:hover:not(:disabled) { background: #ffe4e6; color: #9f1239; }
+.dash-admin-body input:not([type='checkbox']), .dash-admin-body select, .voucher-search, .dash-controls select, .dash-scenario-select select {
+  border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a;
+}
+.dash-admin-body input:not([type='checkbox']):focus, .dash-admin-body select:focus, .voucher-search:focus { border-color: #f43f5e; outline: 0; box-shadow: 0 0 0 3px rgba(244, 63, 94, .16); }
+.voucher-search { min-height: 42px; width: min(100%, 360px); margin: 16px 0; }
+.voucher-search::placeholder { color: #94a3b8; }
+.stock-label, .dash-tag { border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; }
+.stock-label { border: 1px solid #a7f3d0; background: #ecfdf5; color: #047857; }
+.stock-label.is-low { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+.stock-label.is-empty { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
+.empty-state { border: 1px solid #e2e8f0; border-top: 4px solid #e11d48; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .04); }
+.empty-state > svg { width: 56px; height: 56px; padding: 14px; border-radius: 999px; color: #e11d48; background: #fff1f2; }
+.empty-state h2 { color: #0f172a; font-weight: 800; }
+.order-error, .campaign-error { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border: 1px solid #fecdd3; border-left: 4px solid #e11d48; border-radius: 10px; background: #fff1f2; color: #9f1239; }
+.order-error::before, .campaign-error::before { content: '!'; display: inline-grid; place-items: center; width: 21px; height: 21px; flex: none; border-radius: 50%; background: #e11d48; color: #fff; font-size: 12px; font-weight: 800; }
+.dash-note { border-radius: 10px; }
+.dash-admin-financial-kpis { margin-top: 14px; }
+@media (max-width: 680px) { .dash-table-card, .business-table, .account-form { padding: 14px; } .dash-admin-header h1::after { margin-top: 5px; } }
+
+/* Shared page header and control rhythm across every admin route. */
+.admin-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px 20px; background: #f8fafc; }
+.admin-page-header h1 { color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -.025em; }
+.admin-page-header h1::after { content: ''; display: block; width: 40px; height: 4px; margin-top: 6px; border-radius: 999px; background: #e11d48; }
+.admin-page-header p { margin-top: 8px; color: #64748b; font-size: 13px; }
+.admin-page-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.admin-refresh-button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 8px 14px; border: 1px solid #fecdd3; border-radius: 8px; background: rgba(255, 241, 242, .65); color: #e11d48; font-size: 14px; font-weight: 650; transition: background-color .16s, color .16s, box-shadow .16s; }
+.admin-refresh-button:hover:not(:disabled) { background: #ffe4e6; color: #be123c; box-shadow: 0 2px 7px rgba(225, 29, 72, .1); }
+.admin-refresh-button:disabled { opacity: .6; }
+.admin-refresh-button svg.is-spinning { animation: admin-spin .9s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+.dash-admin-body > .admin-page-header { margin-inline: -28px; }
+.dash-kpi { height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+.dash-kpi-value { padding-right: 8px; white-space: nowrap; font-size: clamp(24px, 2.2vw, 32px); font-weight: 800; letter-spacing: -.04em; }
+.dash-kpi p { margin-top: 8px; }
+.business-table .empty-state, .dash-table-card .empty-state, .dash-card > .empty-state { border-top: 0; border: 1px solid #e2e8f0; border-radius: 12px; margin: 16px 0 0; padding: 30px 18px; box-shadow: none; }
+.business-table .empty-state > svg, .dash-table-card .empty-state > svg { width: 48px; height: 48px; padding: 12px; margin-bottom: 12px; }
+.business-table .empty-state p, .dash-table-card .empty-state p { margin: 8px auto 16px; }
+.business-table table, .dash-scroll-table table { table-layout: auto; }
+.business-table th, .business-table td, .dash-scroll-table th, .dash-scroll-table td { vertical-align: middle; }
+.dash-table-card > .dash-section-heading { border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; }
+.campaign-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 999px; color: #475569; background: #f1f5f9; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.campaign-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+.campaign-status-active { border-color: #a7f3d0; color: #047857; background: #ecfdf5; }
+.campaign-status-active .campaign-status-dot { background: #10b981; }
+.campaign-status-upcoming { border-color: #fde68a; color: #b45309; background: #fffbeb; }
+.campaign-status-upcoming .campaign-status-dot { background: #f59e0b; }
+.campaign-status-ended { border-color: #e2e8f0; color: #64748b; background: #f1f5f9; }
+@media (max-width: 680px) { .admin-page-header { padding: 18px 14px 16px; flex-direction: column; gap: 14px; } .admin-page-actions { width: 100%; justify-content: flex-start; } .dash-admin-body > .admin-page-header { margin-inline: -14px; } }
+
+/* Final visual pass: stronger hierarchy, depth and ecommerce-style controls. */
+.dash { background: #f4f6f9; }
+.dash-topbar { background: #fff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(15, 23, 42, .05); }
+.dash-topbar-inner { min-height: 64px; }
+.dash-topbar-status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: #64748b; font-size: 12px; }
+.dash-topbar-status strong { color: #1e293b; font-weight: 800; }
+.dash-topbar-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+.dash-sidebar { border-right: 1px solid rgba(203, 213, 225, .9); box-shadow: 2px 0 12px rgba(15, 23, 42, .03); }
+.dash-sidebar .dash-nav a { min-height: 44px; color: #334155; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.dash-sidebar .dash-nav a svg { color: #64748b; }
+.dash-sidebar .dash-nav a:hover { background: rgba(255, 241, 242, .7); color: #be123c; }
+.dash-sidebar .dash-nav a:hover svg, .dash-sidebar .dash-nav a.active svg { color: #e11d48; }
+.dash-sidebar .dash-nav a.active { border-left: 4px solid #e11d48; border-radius: 0 8px 8px 0; padding-left: 8px; background: linear-gradient(90deg, #fff1f2, rgba(255, 228, 230, .6)); color: #be123c; font-weight: 800; }
+.dash-sidebar-footer { border-top: 1px solid #f1f5f9; padding-top: 16px; }
+.dash-sidebar .dash-home { border: 1px solid #fecdd3; background: rgba(255, 241, 242, .5); color: #e11d48; font-weight: 700; }
+.dash-sidebar .dash-home:hover { background: #e11d48; color: #fff; }
+.admin-page-header { background: #f4f6f9; }
+.admin-page-header h1 { font-size: 24px; font-weight: 800; letter-spacing: -.025em; }
+.admin-refresh-button { border-color: #e2e8f0; background: #fff; color: #334155; box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
+.admin-refresh-button:hover:not(:disabled) { border-color: #fda4af; background: rgba(255, 241, 242, .4); color: #e11d48; }
+.dash-card { border-color: rgba(203, 213, 225, .9); border-radius: 12px; box-shadow: 0 2px 8px rgba(15, 23, 42, .04); }
+.dash-admin-shortcut { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.dash-admin-shortcut:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15, 23, 42, .08); }
+.dash-scroll-table thead, .business-table thead { background: rgba(241, 245, 249, .9); border-block: 1px solid #e2e8f0; }
+.dash-scroll-table thead th, .business-table thead th { padding: 14px 16px; color: #475569; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.dash-scroll-table tbody td, .dash-scroll-table tbody th, .business-table tbody td, .business-table tbody th { padding: 14px 16px; }
+.dash-scroll-table tbody tr, .business-table tbody tr { transition: background-color .16s ease; }
+.dash-scroll-table tbody tr:hover, .business-table tbody tr:hover { background: rgba(255, 241, 242, .4); }
+.dash-code, .business-table td:nth-child(2) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.dash-price, .business-table td:nth-child(3) { color: #e11d48; font-weight: 800; font-variant-numeric: tabular-nums; }
+.campaign-row-actions .dash-text-link, .business-table .text-link { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid #fecdd3; border-radius: 6px; background: #fff1f2; color: #e11d48; font-size: 12px; font-weight: 700; }
+.campaign-row-actions .dash-text-link:hover, .business-table .text-link:hover { background: #e11d48; color: #fff; text-decoration: none; }
+.campaign-delete-button { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 6px; background: #f1f5f9; color: #475569; }
+.campaign-delete-button:hover:not(:disabled) { background: #dc2626; color: #fff; text-decoration: none; }
+.monitoring-connection[open] { border-color: #a7f3d0; box-shadow: 0 0 0 3px rgba(16, 185, 129, .08); }
+.monitoring-connection[open] .connection-state { color: #047857; font-weight: 700; }
+.connection-dot.is-connected { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+.dash-telemetry > h2, .dash-alerts > h2, .monitoring-data-header h2 { color: #1e293b; font-size: 16px; font-weight: 800; }
+.dash-kpi-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dash-kpi.dash-green .dash-kpi-value { color: #e11d48; font-size: clamp(24px, 2vw, 30px); }
+.empty-state { padding: 34px 20px; }
+.empty-state > svg { width: 56px; height: 56px; padding: 14px; border: 1px solid #ffe4e6; border-radius: 999px; background: #fff1f2; color: #e11d48; }
+.empty-state h2 { color: #1e293b; font-size: 16px; font-weight: 800; }
+.empty-state p { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+.order-error, .campaign-error { border-left-width: 4px; border-left-color: #e11d48; border-radius: 8px; padding: 16px; background: #fff1f2; color: #9f1239; font-size: 14px; font-weight: 650; }
+.admin-search-toolbar { display: flex; align-items: end; margin-bottom: 16px; padding: 12px; border: 1px solid rgba(203, 213, 225, .7); border-radius: 8px; background: rgba(248, 250, 252, .7); }
+.admin-search-toolbar label { display: grid; gap: 6px; width: min(100%, 420px); color: #475569; font-size: 12px; font-weight: 700; }
+.admin-search-input { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #94a3b8; }
+.admin-search-input:focus-within { border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244, 63, 94, .15); }
+.admin-search-input input { min-width: 0; width: 100%; border: 0 !important; outline: 0; box-shadow: none !important; }
+@media (max-width: 680px) {
+  .dash-sidebar { height: auto; border-right: 0; }
+}
+@media (max-width: 680px) { .dash-topbar-status { width: 100%; margin: 0; padding-bottom: 8px; } .dash-topbar-inner { flex-wrap: wrap; } .dash-scroll-table thead th, .business-table thead th, .dash-scroll-table tbody td, .dash-scroll-table tbody th, .business-table tbody td, .business-table tbody th { padding: 11px 10px; } }

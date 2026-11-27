@@ -10,7 +10,7 @@ import { OrderStatusBadge } from '../components/order/OrderStatusBadge';
 import { OrderSummary } from '../components/order/OrderSummary';
 import type { OrderRecord } from '../types/order';
 import { AdminCampaignManagement } from './AdminCampaignManagement';
-import { Button } from '../components/common/Button';
+import { AdminPageHeader, AdminRefreshButton } from '../components/admin/AdminPageHeader';
 
 const pages = {
   overview: ['Tổng quan Flash Sale', 'Theo dõi sản phẩm, tồn kho và kết quả đặt hàng.'],
@@ -53,7 +53,7 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
       <div className="dash-admin">
         <AdminSidebar />
         <main id="main-content" tabIndex={-1} className="dash-admin-main">
-        {section === 'overview' ? <header className="dash-admin-header dash-heading admin-compact-header"><h1>Tổng quan</h1><Button variant="secondary" onClick={refresh} disabled={result.status === 'loading'}>Làm mới</Button></header> : <h1 className="sr-only">{title}</h1>}
+        {section !== 'campaigns' && <AdminPageHeader title={section === 'overview' ? 'Tổng quan' : title} description={pages[section][1]} actions={section === 'overview' ? <AdminRefreshButton onClick={refresh} disabled={result.status === 'loading'} /> : undefined} />}
         <div className="dash-admin-body dash-stack">
           {section === 'missing' ? (
             <EmptyState title="Không tìm thấy trang" description="Đường dẫn này không thuộc khu vực quản trị.">
