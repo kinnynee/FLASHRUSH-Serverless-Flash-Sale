@@ -95,7 +95,7 @@ def template(bucket, code_key):
     resource('SpaRewrite', 'CloudFront::Function', {
         'Name': 'flashrush-lab-spa-rewrite', 'AutoPublish': True,
         'FunctionConfig': {'Comment': 'Rewrite application routes only; preserve asset errors', 'Runtime': 'cloudfront-js-2.0'},
-        'FunctionCode': "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"})
+        'FunctionCode': "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring|account)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"})
     resource('Distribution', 'CloudFront::Distribution', {'DistributionConfig': {'Enabled': True, 'DefaultRootObject': 'index.html',
         'PriceClass': 'PriceClass_100', 'HttpVersion': 'http2', 'IPV6Enabled': True,
         'Origins': [{'Id': 'website', 'DomainName': {'Fn::GetAtt': ['Website', 'RegionalDomainName']},
@@ -131,6 +131,26 @@ def template(bucket, code_key):
     extend_customer_resources(resources, outputs)
     parameters = {'AdminApiKey': {'Type': 'String', 'NoEcho': True, 'MinLength': 32,
         'Description': 'Admin API bearer secret. Supply via FLASHRUSH_ADMIN_API_KEY; never commit it.'}}
+    extension = json.loads((ROOT/'infrastructure/templates/business-extension.json').read_text(encoding='utf-8'))
+    def shared_pool(value):
+        if isinstance(value, dict): return {k: shared_pool(v) for k,v in value.items()}
+        if isinstance(value, list): return [shared_pool(v) for v in value]
+        return {'UserPool': 'CustomerPool', 'UserPoolClient': 'CustomerClient'}.get(value, value) if isinstance(value, str) else value
+    for key, value in extension['Resources'].items():
+        if key in ('UserPool', 'UserPoolClient') or (value['Type'] == 'AWS::ApiGatewayV2::Route' and value['Properties']['RouteKey'] == 'GET /me/orders'): continue
+        resources[key] = shared_pool(value)
+    for index, method in enumerate(('GET', 'POST', 'PATCH')):
+        resources['VoucherRoute'+str(index)] = {'Type': 'AWS::ApiGatewayV2::Route', 'Properties': {
+            'ApiId': ref('HttpApi'), 'RouteKey': method+' /admin/vouchers', 'AuthorizationType': 'NONE',
+            'Target': {'Fn::Join': ['/', ['integrations', ref('Integration')]]}}}
+    resources['WorkerRole']['Properties']['Policies'][0]['PolicyDocument']['Statement'].append({
+        'Effect': 'Allow', 'Action': ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'], 'Resource': arn('Business')})
+    outputs.update(shared_pool(extension['Outputs']))
+    resources['ApiRole']['Properties']['Policies'][0]['PolicyDocument']['Statement'].extend(shared_pool(extension['Statements']))
+    headers = resources['HttpApi']['Properties']['CorsConfiguration']['AllowHeaders']
+    if 'authorization' not in headers: headers.append('authorization')
+    for name in ('Api', 'Worker'):
+        resources[name]['Properties']['Environment']['Variables'].update(BUSINESS_TABLE=ref('Business'), USER_POOL_ID=ref('CustomerPool'), USER_POOL_CLIENT_ID=ref('CustomerClient'))
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': 'FLASHRUSH isolated lab; admin dashboard API',
             'Parameters': parameters, 'Resources': resources, 'Outputs': outputs}
 
@@ -170,6 +190,9 @@ def main():
     with zipfile.ZipFile(code, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.write(ROOT / 'backend/app.py', 'app.py')
         archive.write(ROOT / 'backend/monitoring.py', 'monitoring.py')
+        archive.write(ROOT / 'backend/business.py', 'business.py')
+        archive.write(ROOT / 'backend/vouchers.py', 'vouchers.py')
+
         archive.write(ROOT / 'backend/customer.py', 'customer.py')
     key = 'lambda/' + hashlib.sha256(code.read_bytes()).hexdigest() + '.zip'
     s3.upload_file(str(code), bucket, key)

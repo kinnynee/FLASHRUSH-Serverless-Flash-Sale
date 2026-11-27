@@ -32,7 +32,8 @@ def main():
     if old_index is not None: (output/'index-before.html').write_bytes(old_index)
     buf=io.BytesIO()
     with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
-        for name in ('app.py', 'monitoring.py', 'customer.py'):
+        for name in ('app.py', 'monitoring.py', 'business.py', 'customer.py', 'vouchers.py'):
+
             z.writestr(name, (ROOT/'backend'/name).read_bytes())
     payload=buf.getvalue(); expected=base64.b64encode(hashlib.sha256(payload).digest()).decode()
     def invalidate():

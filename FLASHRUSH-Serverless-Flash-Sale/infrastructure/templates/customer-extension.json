@@ -1,0 +1,434 @@
+{
+  "Resources": {
+    "CustomerPool": {
+      "Type": "AWS::Cognito::UserPool",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "UserPoolName": "flashrush-customers",
+        "UsernameAttributes": [
+          "email"
+        ],
+        "AutoVerifiedAttributes": [
+          "email"
+        ],
+        "UsernameConfiguration": {
+          "CaseSensitive": false
+        },
+        "DeletionProtection": "ACTIVE",
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 12,
+            "RequireUppercase": true,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true
+          }
+        },
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_email",
+              "Priority": 1
+            }
+          ]
+        },
+        "Schema": [
+          {
+            "Name": "email",
+            "Required": true,
+            "Mutable": true
+          },
+          {
+            "Name": "name",
+            "Mutable": true
+          }
+        ]
+      }
+    },
+    "CustomerClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "CustomerPool"
+        },
+        "ClientName": "flashrush-web",
+        "GenerateSecret": false,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_PASSWORD_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH"
+        ],
+        "PreventUserExistenceErrors": "ENABLED",
+        "EnableTokenRevocation": true,
+        "AccessTokenValidity": 10,
+        "IdTokenValidity": 10,
+        "RefreshTokenValidity": 1,
+        "TokenValidityUnits": {
+          "AccessToken": "minutes",
+          "IdToken": "minutes",
+          "RefreshToken": "days"
+        },
+        "ReadAttributes": [
+          "email",
+          "email_verified",
+          "name",
+          "sub"
+        ],
+        "WriteAttributes": [
+          "email",
+          "name"
+        ]
+      }
+    },
+    "CustomerData": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "TableName": "flashrush-lab-customers",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "recordId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "recordId",
+            "KeyType": "RANGE"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      }
+    },
+    "CustomerAuthorizer": {
+      "Type": "AWS::ApiGatewayV2::Authorizer",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "AuthorizerType": "JWT",
+        "IdentitySource": [
+          "$request.header.Authorization"
+        ],
+        "Name": "customer-cognito",
+        "JwtConfiguration": {
+          "Audience": [
+            {
+              "Ref": "CustomerClient"
+            }
+          ],
+          "Issuer": {
+            "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${CustomerPool}"
+          }
+        }
+      }
+    },
+    "CustomerRoute0": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/profile",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute1": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PUT /me/profile",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute2": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/cart",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute3": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PUT /me/cart",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute4": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /me/checkouts",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute5": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/checkouts/{checkoutId}",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute6": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/orders",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "CustomerRoute7": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /me/orders/{orderId}",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "CustomerPoolId": {
+      "Value": {
+        "Ref": "CustomerPool"
+      }
+    },
+    "CustomerClientId": {
+      "Value": {
+        "Ref": "CustomerClient"
+      }
+    },
+    "CustomerRegion": {
+      "Value": {
+        "Ref": "AWS::Region"
+      }
+    },
+    "CustomersTable": {
+      "Value": {
+        "Ref": "CustomerData"
+      }
+    }
+  },
+  "ApiEnvironment": {
+    "CUSTOMERS_TABLE": {
+      "Ref": "CustomerData"
+    },
+    "CUSTOMER_CLIENT_ID": {
+      "Ref": "CustomerClient"
+    },
+    "CUSTOMER_ISSUER": {
+      "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${CustomerPool}"
+    }
+  },
+  "WorkerEnvironment": {
+    "CUSTOMERS_TABLE": {
+      "Ref": "CustomerData"
+    },
+    "CUSTOMER_CLIENT_ID": {
+      "Ref": "CustomerClient"
+    },
+    "CUSTOMER_ISSUER": {
+      "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${CustomerPool}"
+    }
+  },
+  "ApiRoleStatements": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query"
+      ],
+      "Resource": {
+        "Fn::GetAtt": [
+          "CustomerData",
+          "Arn"
+        ]
+      }
+    }
+  ],
+  "WorkerRoleStatements": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem"
+      ],
+      "Resource": {
+        "Fn::GetAtt": [
+          "CustomerData",
+          "Arn"
+        ]
+      }
+    }
+  ]
+}

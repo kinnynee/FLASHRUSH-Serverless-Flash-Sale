@@ -4,7 +4,7 @@ import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminTopbar } from '../components/admin/AdminTopbar';
 import { AdminOrdersTable, ProductInventoryTable, RecentOrdersTable } from '../components/admin/AdminTables';
 import { EmptyState } from '../components/common/EmptyState';
-import { DashboardContent, formatSnapshotTime, MonitoringStatusBadge, OrderMetricsOverview } from '../components/dashboard/DashboardCommon';
+import { DashboardContent, formatSnapshotTime, OrderMetricsOverview } from '../components/dashboard/DashboardCommon';
 import { useDashboard } from '../components/dashboard/DashboardLayout';
 import { OrderStatusBadge } from '../components/order/OrderStatusBadge';
 import { OrderSummary } from '../components/order/OrderSummary';
@@ -45,8 +45,7 @@ function OrderDetail({ order }: { order?: OrderRecord }) {
 export function AdminDashboardPage({ section = 'overview' }: { section?: keyof typeof pages }) {
   const { orderId } = useParams();
   const { result, refresh } = useDashboard();
-  const snapshot = result.status === 'success' ? result.snapshot : undefined;
-  const [title, description] = pages[section];
+  const [title] = pages[section];
 
   return (
     <>
@@ -54,17 +53,7 @@ export function AdminDashboardPage({ section = 'overview' }: { section?: keyof t
       <div className="dash-admin">
         <AdminSidebar />
         <main id="main-content" tabIndex={-1} className="dash-admin-main">
-        <header className="dash-admin-header dash-heading">
-          <div>
-            <h1>{title}</h1><p>{description}</p>
-            {section !== 'overview' && section !== 'missing' && <Link className="dash-admin-back" to="/admin"><ArrowLeft size={15} /> Tổng quan Admin</Link>}
-          </div>
-          <div className="dash-header-badges">
-            {snapshot && <span className="dash-tag">Phiên #{snapshot.sessionId}</span>}
-            <MonitoringStatusBadge snapshot={snapshot} />
-            <Button variant="secondary" onClick={refresh} disabled={result.status === 'loading'}>Làm mới dữ liệu</Button>
-          </div>
-        </header>
+        {section === 'overview' ? <header className="dash-admin-header dash-heading admin-compact-header"><h1>Tổng quan</h1><Button variant="secondary" onClick={refresh} disabled={result.status === 'loading'}>Làm mới</Button></header> : <h1 className="sr-only">{title}</h1>}
         <div className="dash-admin-body dash-stack">
           {section === 'missing' ? (
             <EmptyState title="Không tìm thấy trang" description="Đường dẫn này không thuộc khu vực quản trị.">

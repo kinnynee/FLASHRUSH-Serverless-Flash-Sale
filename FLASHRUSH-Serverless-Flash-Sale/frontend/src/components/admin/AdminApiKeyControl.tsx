@@ -24,18 +24,15 @@ export function AdminApiKeyControl({ onChange }: { onChange: () => void }) {
   }
 
   return (
-    <section className="dash-card dash-admin-key-card" aria-labelledby="dash-admin-key-title">
-      <div>
-        <h2 id="dash-admin-key-title">Kết nối dữ liệu AWS</h2>
-        <p>{connected ? 'Admin API key đã được lưu trong phiên trình duyệt.' : 'Nhập Admin API key để đọc số liệu CloudWatch.'}</p>
-      </div>
+    <details className="monitoring-connection">
+      <summary><span className={`connection-dot ${connected ? 'is-connected' : ''}`} />Kết nối API<span className="connection-state">{connected ? 'Đã lưu khóa' : 'Thiết lập'}</span></summary>
       <form className="dash-admin-auth" onSubmit={connect}>
         <label className="sr-only" htmlFor="admin-api-key">Admin API key</label>
-        <input id="admin-api-key" type="password" autoComplete="current-password" value={key}
+        <input id="admin-api-key" type="password" autoComplete="off" value={key}
           onChange={event => setKey(event.target.value)} placeholder="Admin API key" />
         <Button type="submit" disabled={!key.trim()}>Kết nối</Button>
         {connected && <Button type="button" variant="secondary" onClick={disconnect}>Ngắt kết nối</Button>}
       </form>
-    </section>
+    </details>
   );
 }

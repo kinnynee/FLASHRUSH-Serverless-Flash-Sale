@@ -227,6 +227,40 @@
                       "Arn"
                     ]
                   }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:Scan"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Business",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cognito-idp:ListUsers",
+                    "cognito-idp:AdminListGroupsForUser",
+                    "cognito-idp:AdminCreateUser",
+                    "cognito-idp:AdminAddUserToGroup",
+                    "cognito-idp:AdminRemoveUserFromGroup",
+                    "cognito-idp:AdminEnableUser",
+                    "cognito-idp:AdminDisableUser",
+                    "cognito-idp:AdminUpdateUserAttributes",
+                    "cognito-idp:AdminGetUser"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CustomerPool",
+                      "Arn"
+                    ]
+                  }
                 }
               ]
             }
@@ -327,6 +361,20 @@
                       "Arn"
                     ]
                   }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Business",
+                      "Arn"
+                    ]
+                  }
                 }
               ]
             }
@@ -389,6 +437,15 @@
             },
             "CUSTOMER_ISSUER": {
               "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${CustomerPool}"
+            },
+            "BUSINESS_TABLE": {
+              "Ref": "Business"
+            },
+            "USER_POOL_ID": {
+              "Ref": "CustomerPool"
+            },
+            "USER_POOL_CLIENT_ID": {
+              "Ref": "CustomerClient"
             }
           }
         },
@@ -445,6 +502,15 @@
             },
             "CUSTOMER_ISSUER": {
               "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${CustomerPool}"
+            },
+            "BUSINESS_TABLE": {
+              "Ref": "Business"
+            },
+            "USER_POOL_ID": {
+              "Ref": "CustomerPool"
+            },
+            "USER_POOL_CLIENT_ID": {
+              "Ref": "CustomerClient"
             }
           }
         },
@@ -907,7 +973,7 @@
           "Comment": "Rewrite application routes only; preserve asset errors",
           "Runtime": "cloudfront-js-2.0"
         },
-        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring|cart|account|auth)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
+        "FunctionCode": "function handler(event) { var r = event.request; if (/^\\/(products|checkout|orders|admin|monitoring|cart|account|auth|account)(\\/.*)?$/.test(r.uri) && !/\\.[^/]+$/.test(r.uri)) { r.uri = '/index.html'; } return r; }"
       }
     },
     "Distribution": {
@@ -1551,6 +1617,474 @@
           ]
         }
       }
+    },
+    "CustomerRoute10": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /me/vouchers/quote",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "CustomerAuthorizer"
+        },
+        "AuthorizationScopes": [
+          "aws.cognito.signin.user.admin"
+        ],
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "Business": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "flashrush-lab-business",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      }
+    },
+    "GroupOwner": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "CustomerPool"
+        },
+        "GroupName": "owner"
+      }
+    },
+    "GroupManager": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "CustomerPool"
+        },
+        "GroupName": "manager"
+      }
+    },
+    "GroupWarehouse": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "CustomerPool"
+        },
+        "GroupName": "warehouse"
+      }
+    },
+    "GroupSupport": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "CustomerPool"
+        },
+        "GroupName": "support"
+      }
+    },
+    "BusinessRoute0": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/register",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute1": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/confirm",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute2": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/login",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute3": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/new-password",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute4": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/forgot-password",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute5": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/reset-password",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute6": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /auth/logout",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute7": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /auth/me",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute9": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/customers",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute10": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/users",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute11": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /admin/users",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute12": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/users",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute13": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/inventory",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute14": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/inventory/movements",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute15": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /admin/inventory/adjustments",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "BusinessRoute16": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/customers",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "VoucherRoute0": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /admin/vouchers",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "VoucherRoute1": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /admin/vouchers",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "VoucherRoute2": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "PATCH /admin/vouchers",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        }
+      }
     }
   },
   "Outputs": {
@@ -1625,6 +2159,21 @@
     "CustomersTable": {
       "Value": {
         "Ref": "CustomerData"
+      }
+    },
+    "BusinessTable": {
+      "Value": {
+        "Ref": "Business"
+      }
+    },
+    "UserPoolId": {
+      "Value": {
+        "Ref": "CustomerPool"
+      }
+    },
+    "UserPoolClientId": {
+      "Value": {
+        "Ref": "CustomerClient"
       }
     }
   }

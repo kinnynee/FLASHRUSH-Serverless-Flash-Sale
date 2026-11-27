@@ -39,7 +39,7 @@ export function MonitoringChart({
     <section className="monitoring-chart-panel" aria-label={title}>
       <div className="monitoring-chart-heading">
         <h3>{title}</h3>
-        <span>{unit} · mỗi phút</span>
+        <span>{unit}</span>
       </div>
       {hasData ? (
         <ChartContainer
@@ -117,9 +117,7 @@ export function MonitoringChart({
           <p>Biểu đồ sẽ xuất hiện khi CloudWatch trả về số liệu.</p>
         </div>
       )}
-      <p className="monitoring-chart-note">
-        Khoảng trống là phút chưa có số liệu; giá trị 0 được giữ nguyên.
-      </p>
+
     </section>
   );
 }
@@ -130,7 +128,7 @@ export const queueChartConfig = {
   dlq_visible: { label: "DLQ", color: "#e11d48" },
 } satisfies ChartConfig;
 export const queueAgeConfig = {
-  queue_age: { label: "Tuổi tin nhắn lâu nhất", color: "#d97706" },
+  queue_age: { label: "Thời gian chờ", color: "#d97706" },
 } satisfies ChartConfig;
 
 export function LambdaChart({

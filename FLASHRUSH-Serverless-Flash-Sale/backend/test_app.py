@@ -261,12 +261,14 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(result['statusCode'], 201)
         self.assertEqual(created['stock'], 5)
         result, updated = self.request('PATCH', '/admin/products/new-sku', {'stockDelta': -3, 'price': 80}, headers)
-        self.assertEqual(result['statusCode'], 200)
-        self.assertEqual(updated['stock'], 2)
-        self.assertEqual(updated['price'], 80)
-        result, body = self.request('PATCH', '/admin/products/new-sku', {'stockDelta': -3}, headers)
-        self.assertEqual(result['statusCode'], 409)
-        self.assertEqual(body['error']['code'], 'INSUFFICIENT_STOCK')
+        self.assertEqual(result['statusCode'], 400)
+        self.assertEqual(updated['error']['code'], 'USE_INVENTORY_ADJUSTMENTS')
+        self.assertEqual(self.app.products.get_item(Key={'productId': 'new-sku'})['Item']['stock'], 5)
+
+    def test_existing_customer_checkout_dispatch_preserved(self):
+        with patch('customer.process_checkout') as checkout:
+            self.app.process({'schemaVersion': '2.0', 'checkoutId': 'existing'})
+            checkout.assert_called_once()
 
     def test_active_lease_and_attempt_limit_prevent_resend(self):
         with patch.object(self.app.sqs, 'send_message', side_effect=TimeoutError):

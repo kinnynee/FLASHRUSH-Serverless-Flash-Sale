@@ -48,3 +48,12 @@ describe('Customer service authorization and mutations', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+it('quotes only selected cart lines and carries voucher in idempotent checkout', async () => {
+  vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({code:'SALE10',discount:10,total:90}), {status:200}));
+  await customerService.voucherQuote('SALE10', ['one']);
+  expect(fetch).toHaveBeenCalledWith('https://example.test/me/vouchers/quote', expect.objectContaining({body: JSON.stringify({code:'SALE10',lineIds:['one']})}));
+  await customerService.checkout({ version:1,lineIds:['one'],addressId:'home',voucherCode:'SALE10'}, 'voucher-key');
+  expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body)).voucherCode).toBe('SALE10');
+  expect(vi.mocked(fetch).mock.calls[1][1]?.headers).toMatchObject({'Idempotency-Key':'voucher-key'});
+});

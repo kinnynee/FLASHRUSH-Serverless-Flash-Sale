@@ -4,6 +4,10 @@ import { CustomerProvider } from './components/customer/CustomerProvider';
 import { CustomerAuthPage } from './pages/CustomerAuthPage';
 import { CartPage } from './pages/CartPage';
 import { CustomerAccountPage, CustomerOrderPage } from './pages/CustomerAccountPage';
+
+import { AccountPage } from './pages/AccountPage';
+import { AdminVouchersPage } from './pages/AdminVouchersPage';
+import { BusinessAdminPage } from './pages/BusinessAdminPage';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { EmptyState } from './components/common/EmptyState';
@@ -31,6 +35,7 @@ export default function App() {
       '/products': 'Sản phẩm Flash Sale',
       '/cart/checkout': 'Xác nhận đơn hàng',
       '/auth': 'Đăng nhập và đăng ký', '/cart': 'Giỏ hàng', '/account': 'Tài khoản của tôi', '/account/orders': 'Đơn mua', '/account/addresses': 'Địa chỉ nhận hàng', '/account/password': 'Đổi mật khẩu',
+
       '/admin': 'Tổng quan Flash Sale',
       '/admin/products': 'Sản phẩm · Quản trị demo',
       '/admin/campaigns': 'Đợt Flash Sale',
@@ -49,6 +54,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductListingPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/staff/login" element={<AccountPage />} />
         <Route path="/auth" element={<CustomerAuthPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/cart/checkout" element={<CartPage checkoutMode />} />
@@ -58,6 +64,7 @@ export default function App() {
         <Route path="/account/orders" element={<CustomerAccountPage section="orders" />} />
         <Route path="/account/orders/:id" element={<CustomerOrderPage />} />
         <Route path="/account/checkouts/:id" element={<CustomerOrderPage group />} />
+
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrderHistoryPage />} />
         <Route path="/orders/:orderId/processing" element={<OrderProcessingPage />} />
@@ -72,6 +79,10 @@ export default function App() {
       </Route>
       <Route path="/admin" element={<DashboardLayout />}>
         <Route index element={<AdminDashboardPage />} />
+        <Route path="customers" element={<BusinessAdminPage section="customers" />} />
+        <Route path="users" element={<BusinessAdminPage section="users" />} />
+        <Route path="vouchers" element={<AdminVouchersPage />} />
+        <Route path="inventory" element={<BusinessAdminPage section="inventory" />} />
         <Route path="products" element={<AdminDashboardPage section="products" />} />
         <Route path="campaigns" element={<AdminDashboardPage section="campaigns" />} />
         <Route path="orders" element={<AdminDashboardPage section="orders" />} />

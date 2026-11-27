@@ -163,7 +163,7 @@ def save_cart(user, payload):
 
 def order_view(item):
     return {**app.public_order(item), 'item': item['item'], 'checkoutId': item['checkoutId'],
-            'address': item['address'], 'failureReason': item.get('failureReason'), 'unitPrice': item['unitPrice']}
+            'address': item['address'], 'failureReason': item.get('failureReason'), 'unitPrice': item['unitPrice'], **{k:item[k] for k in ('subtotal','discount','totalAmount','voucherCode') if k in item}}
 
 
 def owned_order(user, oid):
@@ -193,7 +193,7 @@ def order_list(user, query):
 
 def checkout_view(record):
     return {'checkoutId': record['recordId'][9:], 'status': record['status'],
-            'pricing': record.get('pricing'),
+            'pricing': record.get('pricing'), **{k:record[k] for k in ('subtotal','discount','totalAmount') if k in record},
             'orders': [order_view(owned_order(record['userId'], oid)) for oid in record['orderIds']]}
 
 
@@ -268,19 +268,21 @@ def selected_cart(user, payload):
     return cart, lines
 
 
-def price_checkout(lines, products, payload):
-    voucher = text(payload.get('voucherCode', ''), 30, False).upper()
-    if voucher not in ('', 'HAUMON'):
-        raise Problem('INVALID_VOUCHER', 409)
+def price_checkout(lines, products, payload, user=None):
+    voucher = text(payload.get('voucherCode', ''), 32, False).upper()
     if payload.get('shippingMethod', 'STANDARD') != 'STANDARD':
         raise Problem('INVALID_SHIPPING_METHOD')
     if payload.get('paymentMethod', 'COD') != 'COD':
         raise Problem('INVALID_PAYMENT_METHOD')
     subtotal = sum(products[line['productId']]['price'] * line['quantity'] for line in lines)
-    if voucher and subtotal < 3600000:
+    if voucher == 'HAUMON' and subtotal < 3600000:
         raise Problem('VOUCHER_MINIMUM_NOT_MET', 409)
     # Integer VND: round the total discount down, then allocate by cumulative value.
-    discount = int(subtotal * 3636 // 10000) if voucher else 0
+    discount = int(subtotal * 3636 // 10000) if voucher == 'HAUMON' else 0
+    if voucher and voucher != 'HAUMON':
+        from vouchers import quote, VoucherError
+        try: discount=quote(voucher,user,subtotal)['discount']
+        except VoucherError as exc: raise Problem(str(exc),409)
     return {'subtotal': subtotal, 'discount': discount, 'shippingFee': 0,
             'total': subtotal - discount, 'voucherCode': voucher,
             'shippingMethod': 'STANDARD', 'paymentMethod': 'COD',
@@ -292,7 +294,7 @@ def checkout_quote(user, payload):
         raise Problem('INVALID_CHECKOUT')
     _, lines = selected_cart(user, payload)
     products, _, _ = validate_lines(lines)
-    return price_checkout(lines, products, payload)
+    return price_checkout(lines, products, payload, user)
 
 
 def create_checkout(user, payload, headers):
@@ -326,13 +328,19 @@ def create_checkout(user, payload, headers):
     if not address:
         raise Problem('ADDRESS_REQUIRED', 409)
     product_map, _, _ = validate_lines(lines)
-    pricing = price_checkout(lines, product_map, payload)
+    pricing = price_checkout(lines, product_map, payload, user)
     if 'expectedTotal' in payload:
         integer(payload['expectedTotal'], 0, 10**15)
         if payload['expectedTotal'] != pricing['total']:
             raise Problem('QUOTE_CHANGED', 409)
-    elif payload.get('voucherCode'):
+    elif pricing['voucherCode']:
         raise Problem('QUOTE_REQUIRED', 409)
+    voucher=None
+    if pricing['voucherCode'] and pricing['voucherCode'] != 'HAUMON':
+        from vouchers import quote, VoucherError
+        try: voucher=quote(pricing['voucherCode'],user,pricing['subtotal'])
+        except VoucherError as exc: raise Problem(str(exc),409)
+        if voucher['discount'] != pricing['discount']: raise Problem('QUOTE_CHANGED',409)
     timestamp = app.now()
     order_ids, writes = [], []
     accumulated, allocated = 0, 0
@@ -356,10 +364,11 @@ def create_checkout(user, payload, headers):
                  'status': 'PENDING', 'createdAt': timestamp, 'updatedAt': timestamp, 'enqueueState': 'GROUP',
                  'idempotencyKeyHash': app.digest(user + ':' + token), 'payloadHash': fingerprint,
                  'correlationId': checkout_id}
+        order.update(subtotal=line_subtotal,discount=line_discount,voucherCode=pricing['voucherCode'])
         writes.extend([{'Put': {'TableName': app.orders.name, 'Item': app.values(order), 'ConditionExpression': 'attribute_not_exists(orderId)'}},
                        {'Put': {'TableName': table().name, 'Item': app.values({**key(user, 'ORDER#'+timestamp+'#'+oid), 'orderId': oid})}}])
     record = {**key(user, sk), 'status': 'PENDING', 'enqueueState': 'NOT_SENT', 'createdAt': timestamp,
-              'payloadHash': fingerprint, 'orderIds': order_ids, 'lines': lines, 'pricing': pricing}
+              'payloadHash': fingerprint, 'orderIds': order_ids, 'lines': lines, 'pricing': pricing, 'subtotal':pricing['subtotal'], 'discount':pricing['discount'], 'totalAmount':pricing['total'], **({'voucher':voucher} if voucher else {})}
     writes.extend([{'Put': {'TableName': table().name, 'Item': app.values(record), 'ConditionExpression': 'attribute_not_exists(recordId)'}},
                    {'Put': {'TableName': table().name, 'Item': app.values({**key(user, 'CART'), 'version': cart['version'] + 1,
                        'items': [line for line in cart['items'] if line['lineId'] not in ids]}),
@@ -388,7 +397,7 @@ def process_checkout(message):
     status, reason, checks = 'CONFIRMED', '', []
     try:
         products, quantities, campaigns = validate_lines(record['lines'])
-        if record.get('pricing') and price_checkout(record['lines'], products, record['pricing']) != record['pricing']:
+        if record.get('pricing') and price_checkout(record['lines'], products, record['pricing'], record['userId']) != record['pricing']:
             raise Problem('QUOTE_CHANGED', 409)
         for pid, qty in quantities.items():
             checks.append({'Update': {'TableName': app.products.name, 'Key': app.values({'productId': pid}),
@@ -399,7 +408,12 @@ def process_checkout(message):
                 'ConditionExpression': 'startTime=:start AND endTime=:end AND productIds=:ids AND maxQtyPerOrder=:qty',
                 'ExpressionAttributeValues': app.values({':start': campaign['startTime'], ':end': campaign['endTime'],
                     ':ids': campaign['productIds'], ':qty': campaign['maxQtyPerOrder']})}})
+        if record.get('voucher'):
+            from vouchers import redemption, VoucherError
+            try:checks.extend(redemption(record['voucher'],record['userId'],message['checkoutId'],int(record['subtotal']),app.values))
+            except VoucherError as exc:raise Problem(str(exc),409)
     except Problem as exc:
+        checks=[]
         status = 'OUT_OF_STOCK' if exc.code == 'SALE_SOLD_OUT' else 'FAILED'
         reason = exc.code
     updates = []
@@ -435,6 +449,15 @@ def route(event):
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise Problem('INVALID_REQUEST')
+        if path == '/me/vouchers/quote' and method == 'POST':
+            ids=payload.get('lineIds');cart=cart_record(user)
+            if not isinstance(ids,list) or not ids or len(ids)>10 or any(not isinstance(i,str) for i in ids) or len(set(ids))!=len(ids):raise Problem('INVALID_SELECTION')
+            lines=[line for line in cart['items'] if line['lineId'] in ids]
+            if len(lines)!=len(ids):raise Problem('CART_CHANGED',409)
+            validate_lines(lines)
+            from vouchers import quote, VoucherError
+            try:return app.response(200,quote(payload.get('code'),user,sum(int(l['unitPrice'])*l['quantity'] for l in lines)))
+            except VoucherError as exc:raise Problem(str(exc),409)
         if path == '/me/profile':
             if method == 'PUT':
                 save_profile(user, payload)

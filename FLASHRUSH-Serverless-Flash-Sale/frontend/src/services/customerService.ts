@@ -7,7 +7,7 @@ export type Profile = { name: string; email: string; phone: string; avatar: stri
 export type CartInput = { productId: string; quantity: number; color: string; unitPrice: number };
 export type CartLine = CartInput & { lineId: string; product: Product | null; issue: string | null; priceChanged: boolean };
 export type Cart = { version: number; items: CartLine[] };
-export type CustomerOrder = { orderId: string; checkoutId: string; status: OrderStatus; item: OrderItem; address: Address; createdAt: string; updatedAt: string; failureReason?: string };
+export type CustomerOrder = { orderId: string; checkoutId: string; status: OrderStatus; item: OrderItem; address: Address; createdAt: string; updatedAt: string; failureReason?: string; subtotal?:number; discount?:number; totalAmount?:number; voucherCode?:string };
 export type Pricing = { subtotal: number; discount: number; shippingFee: number; total: number; voucherCode: string; shippingMethod: string; paymentMethod: string; quantity: number };
 export type CheckoutOptions = { shipping: { id: string; name: string; fee: number }[]; payments: { id: string; name: string }[]; voucher: { code: string; minimum: number; basisPoints: number } };
 export type QuoteInput = { version: number; lineIds: string[]; voucherCode?: string; shippingMethod?: string; paymentMethod?: string };
@@ -18,6 +18,11 @@ export class CustomerApiError extends Error {
 }
 export function customerMessage(code: string) {
   const messages: Record<string, string> = {
+    VOUCHER_UNAVAILABLE: 'Voucher không tồn tại, đã tắt hoặc hết thời hạn.',
+    VOUCHER_EXHAUSTED: 'Voucher đã hết lượt sử dụng.',
+    VOUCHER_ALREADY_USED: 'Bạn đã sử dụng voucher này.',
+    VOUCHER_MIN_SPEND: 'Đơn hàng chưa đạt giá trị tối thiểu của voucher.',
+    VOUCHER_CHANGED: 'Voucher đã thay đổi. Vui lòng áp dụng lại.',
     UNAUTHORIZED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
     VERSION_CONFLICT: 'Dữ liệu đã thay đổi ở phiên khác. Hãy tải lại trước khi tiếp tục.',
     PRICE_CHANGED: 'Giá đã thay đổi. Hãy cập nhật giá trong giỏ hàng trước khi mua.',
@@ -57,6 +62,7 @@ async function request<T>(path: string, method = 'GET', body?: unknown, key?: st
   return data as T;
 }
 export const customerService = {
+  voucherQuote: (code:string,lineIds:string[]) => request<{code:string;subtotal:number;discount:number;total:number}>('/me/vouchers/quote','POST',{code,lineIds}),
   checkoutOptions: () => request<CheckoutOptions>('/me/checkout-quote'),
   quote: (body: QuoteInput) => request<Pricing>('/me/checkout-quote', 'POST', body),
   profile: () => request<Profile>('/me/profile'),

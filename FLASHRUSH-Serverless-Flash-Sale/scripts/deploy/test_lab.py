@@ -76,7 +76,7 @@ class GuardTests(unittest.TestCase):
         config = template('bucket', 'key')
         resources = config['Resources']
         routes = [r['Properties'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route' and '/me/' in r['Properties']['RouteKey']]
-        self.assertEqual(len(routes), 10)
+        self.assertEqual(len(routes), 11)
         for route in routes:
             self.assertEqual(route['AuthorizationType'], 'JWT')
             self.assertEqual(route['AuthorizationScopes'], ['aws.cognito.signin.user.admin'])

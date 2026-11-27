@@ -248,7 +248,7 @@ def scan_all(table, **scan_kwargs):
 def admin_order_record(item, product_map):
     product = product_map.get(item.get('productId'), {})
     if item.get('ownerId'):
-        return {**public_order(item), 'unitPrice': item['unitPrice'], 'item': item['item']}
+        return {**public_order(item), 'unitPrice': item['unitPrice'], 'item': item['item'], 'totalAmount': item.get('totalAmount', item['unitPrice']*item['quantity']), 'discount': item.get('discount',0), 'voucherCode':item.get('voucherCode','')}
     unit_price = item.get('unitPrice', product.get('price', 0))
     return {**public_order(item), 'unitPrice': unit_price,
             'item': {'productId': item['productId'], 'name': product.get('name', item['productId']),
@@ -347,15 +347,46 @@ def route(event):
     method = event['requestContext']['http']['method']
     path = event.get('rawPath', '/')
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
-    if path.startswith('/me/'):
+    if path.startswith('/me/') and os.environ.get('CUSTOMERS_TABLE'):
         from customer import route as customer_route
         return customer_route(event)
+    import business
+    if path.startswith('/auth'):
+        try:
+            return business.auth_route(event, response, error)
+        except ClientError as exc:
+            code = exc.response['Error']['Code']
+            return error(429 if code in ('TooManyRequestsException', 'LimitExceededException') else 400,
+                         'AUTH_REQUEST_REJECTED' if code not in ('UserNotConfirmedException', 'PasswordResetRequiredException') else code)
+    user = None
+    if (headers.get('authorization') or headers.get('x-user-token')) and (path.startswith('/admin/') or (method == 'POST' and path == '/orders')):
+        try:
+            user = business.identity(event)
+        except ClientError:
+            return error(401, 'UNAUTHORIZED')
+
     if path.startswith('/admin/'):
-        if not ADMIN_API_KEY:
-            return error(503, 'ADMIN_AUTH_NOT_CONFIGURED')
-        supplied = headers.get('x-admin-key', '')
-        if not hmac.compare_digest(supplied, ADMIN_API_KEY):
-            return error(401, 'ADMIN_UNAUTHORIZED')
+        legacy = bool(ADMIN_API_KEY) and hmac.compare_digest(headers.get('x-admin-key', ''), ADMIN_API_KEY)
+        if not legacy and not business.authorize(user, method, path):
+            return error(403 if user else 401, 'FORBIDDEN' if user else 'ADMIN_UNAUTHORIZED')
+        if legacy:
+            user = {'id': 'legacy-admin', 'username': 'legacy-admin', 'roles': ['owner']}
+        if path.startswith('/admin/vouchers'):
+            from vouchers import admin as voucher_admin
+            return voucher_admin(event, response, error)
+        if path.startswith(('/admin/customers', '/admin/users', '/admin/inventory')):
+            return business.route(event, user, products, response, error)
+        if method == 'PATCH' and path.startswith('/admin/products/') and business.body(event).get('stockDelta') is not None:
+            return error(400, 'USE_INVENTORY_ADJUSTMENTS')
+    if method == 'GET' and path == '/me/orders':
+        if not user: return error(401, 'UNAUTHORIZED')
+        found, kwargs = [], {}
+        while True:
+            page = orders.scan(**kwargs)
+            found.extend(public_order(i) for i in page['Items'] if i.get('customerId') == user['id'])
+            if not page.get('LastEvaluatedKey'): break
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        return response(200, {'items': sorted(found, key=lambda i: i['createdAt'], reverse=True)[:200]})
     if method == 'GET' and path == '/admin/overview':
         return response(200, admin_overview_payload())
     if method == 'GET' and path == '/admin/monitoring':
@@ -537,7 +568,7 @@ def route(event):
         campaign_error = active_campaign_limit(pid, qty, current, product)
         if campaign_error:
             return error(409, campaign_error)
-        item = {'orderId': oid, 'productId': pid, 'quantity': qty, 'unitPrice': product['price'], 'status': 'PENDING',
+        item = {'orderId': oid, **({'customerId': user['id']} if user else {}), 'productId': pid, 'quantity': qty, 'unitPrice': product['price'], 'status': 'PENDING',
                 'idempotencyKeyHash': digest(key), 'payloadHash': payload_hash, 'createdAt': now(),
                 'updatedAt': now(), 'enqueueState': 'NOT_SENT', 'enqueueAttemptCount': 0, 'correlationId': str(uuid.uuid4())}
         try:

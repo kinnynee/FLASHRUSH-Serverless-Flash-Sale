@@ -3,8 +3,8 @@ import { RefreshCw } from "lucide-react";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { AdminTopbar } from "../components/admin/AdminTopbar";
 import { AdminApiKeyControl } from "../components/admin/AdminApiKeyControl";
+
 import { Button } from "../components/common/Button";
-import { getAdminKey } from "../services/adminAuth";
 import {
   LambdaChart,
   MonitoringChart,
@@ -22,6 +22,25 @@ const number = (value: number | null) =>
     ? "Chưa có dữ liệu"
     : value.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 const time = (value: string) => new Date(value).toLocaleString("vi-VN");
+const clock = (value: string) =>
+  new Date(value).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+const metricNames: Record<string, string> = {
+  api_invocations: "API · Lượt thực thi",
+  api_errors: "API · Lỗi",
+  api_throttles: "API · Giới hạn",
+  api_concurrency: "API · Đồng thời",
+  worker_invocations: "Worker · Lượt thực thi",
+  worker_errors: "Worker · Lỗi",
+  worker_throttles: "Worker · Giới hạn",
+  worker_concurrency: "Worker · Đồng thời",
+  queue_visible: "Hàng đợi · Đang chờ",
+  queue_inflight: "Hàng đợi · Đang xử lý",
+  queue_age: "Hàng đợi · Thời gian chờ",
+  dlq_visible: "Hàng đợi lỗi",
+};
 
 function QueueMetric({
   title,
@@ -38,16 +57,15 @@ function QueueMetric({
       <dd>
         {number(point?.value ?? null)} {point ? unit : ""}
       </dd>
-      <small>
-        {point
-          ? `Quan sát: ${time(point.at)}`
-          : "CloudWatch chưa trả về datapoint."}
+      <small title={point ? time(point.at) : "Chưa có dữ liệu"}>
+        {point ? clock(point.at) : "Chưa có dữ liệu"}
       </small>
     </div>
   );
 }
 
 export function MonitoringDashboardPage() {
+  const [seriesKey, setSeriesKey] = useState("api_invocations");
   const [minutes, setMinutes] = useState(60);
   const [revision, setRevision] = useState(0);
   const [automatic, setAutomatic] = useState(true);
@@ -60,12 +78,6 @@ export function MonitoringDashboardPage() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     async function load() {
-      if (!getAdminKey()) {
-        setSnapshot(undefined);
-        setLoading(false);
-        setError("Nhập Admin API key và bấm Kết nối để đọc số liệu AWS.");
-        return;
-      }
       setLoading(true);
       try {
         const next = await getMonitoring(minutes, controller.signal);
@@ -112,7 +124,6 @@ export function MonitoringDashboardPage() {
           <header className="dash-admin-header dash-heading dash-monitor-heading">
             <div>
               <h1>Giám sát hệ thống</h1>
-              <p>Amazon CloudWatch · số liệu thực từ AWS</p>
             </div>
             <div className="dash-monitor-actions">
               <label className="dash-scenario-select">
@@ -135,16 +146,25 @@ export function MonitoringDashboardPage() {
                   checked={automatic}
                   onChange={(event) => setAutomatic(event.target.checked)}
                 />{" "}
-                Tự cập nhật mỗi phút
+                Tự cập nhật
               </label>
               <Button variant="secondary" onClick={refresh} disabled={loading}>
                 <RefreshCw size={16} />
-                {loading ? "Đang đọc AWS..." : "Làm mới"}
+                {loading ? "Đang tải..." : "Làm mới"}
               </Button>
             </div>
           </header>
-          <div className="dash-admin-body dash-stack" aria-busy={loading}>
-            <AdminApiKeyControl onChange={() => { setSnapshot(undefined); refresh(); }} />
+          <div
+            className="dash-admin-body dash-stack monitoring-body"
+            aria-busy={loading}
+          >
+            <AdminApiKeyControl
+              onChange={() => {
+                setSnapshot(undefined);
+                refresh();
+              }}
+            />
+
             {error && (
               <div className="order-error" role="alert">
                 {error}
@@ -161,23 +181,31 @@ export function MonitoringDashboardPage() {
             )}
             {snapshot && (
               <>
-                <section className="dash-card monitoring-source">
-                  <strong>CloudWatch · {snapshot.region}</strong>
-                  <p>
-                    Cửa sổ: {time(snapshot.window.start)} –{" "}
-                    {time(snapshot.window.end)} · chu kỳ 60 giây
-                  </p>
-                  <p>
-                    Cập nhật: {time(snapshot.updatedAt)}. Số liệu AWS có thể
-                    xuất hiện trễ vài phút; thiếu dữ liệu không đồng nghĩa với 0
-                    hay hệ thống khỏe mạnh.
-                  </p>
+                <section
+                  className="monitoring-source"
+                  aria-label="Trạng thái dữ liệu"
+                >
+                  <div className="monitoring-source-main">
+                    <span className="monitoring-region">{snapshot.region}</span>
+                    <span>
+                      {clock(snapshot.window.start)} –{" "}
+                      {clock(snapshot.window.end)}
+                    </span>
+                    <span className="monitoring-updated">
+                      Cập nhật {clock(snapshot.updatedAt)}
+                    </span>
+                  </div>
+                  <details>
+                    <summary>Chi tiết dữ liệu</summary>
+                    <p>
+                      {time(snapshot.window.start)} –{" "}
+                      {time(snapshot.window.end)} · Mỗi phút. Số liệu có thể
+                      trễ; thiếu dữ liệu không đồng nghĩa với 0.
+                    </p>
+                  </details>
                 </section>
                 <section className="dash-card dash-telemetry">
-                  <h2>Amazon SQS</h2>
-                  <p>
-                    {snapshot.queues.name} · DLQ: {snapshot.queues.dlqName}
-                  </p>
+                  <h2>Hàng đợi</h2>
                   <dl className="dash-metric-grid monitoring-queue-grid">
                     <QueueMetric
                       title="Đang chờ xử lý"
@@ -188,29 +216,26 @@ export function MonitoringDashboardPage() {
                       point={snapshot.queues.inFlight}
                     />
                     <QueueMetric
-                      title="Tuổi tin nhắn lâu nhất"
+                      title="Chờ lâu nhất"
                       point={snapshot.queues.oldestAge}
                       unit="giây"
                     />
                     <QueueMetric
-                      title="Tin nhắn DLQ"
+                      title="Hàng đợi lỗi"
                       point={snapshot.queues.dlqVisible}
                     />
                   </dl>
-                  <small>
-                    Giá trị xấp xỉ, lấy datapoint gần nhất trong khoảng đã chọn
-                    (Maximum mỗi phút).
-                  </small>
+
                   <div className="monitoring-charts-grid">
                     <MonitoringChart
                       snapshot={snapshot}
-                      title="SQS và DLQ theo thời gian"
+                      title="Lưu lượng hàng đợi"
                       config={queueChartConfig}
                       unit="Tin nhắn"
                     />
                     <MonitoringChart
                       snapshot={snapshot}
-                      title="Thời gian chờ trong hàng đợi"
+                      title="Thời gian chờ"
                       config={queueAgeConfig}
                       unit="Giây"
                     />
@@ -219,8 +244,7 @@ export function MonitoringDashboardPage() {
                 <div className="dash-monitor-grid">
                   {snapshot.functions.map((fn, index) => (
                     <section className="dash-card dash-telemetry" key={fn.name}>
-                      <h2>AWS Lambda</h2>
-                      <p>{fn.name}</p>
+                      <h2 title={fn.name}>{index === 0 ? "API" : "Worker"}</h2>
                       <dl className="dash-metric-grid">
                         <div>
                           <dt>Lượt thực thi</dt>
@@ -261,7 +285,7 @@ export function MonitoringDashboardPage() {
                   ))}
                 </div>
                 <section className="dash-card">
-                  <h2>CloudWatch Alarms</h2>
+                  <h2>Cảnh báo</h2>
                   {snapshot.alarms.length === 0 ? (
                     <p>
                       Chưa tìm thấy alarm đã cấu hình. Không thể kết luận hệ
@@ -285,37 +309,50 @@ export function MonitoringDashboardPage() {
                     </ul>
                   )}
                 </section>
-                <section className="dash-card">
-                  <h2>Số liệu theo phút</h2>
-                  <p>Chỉ hiển thị datapoint CloudWatch đã trả về.</p>
-                  <div className="monitoring-series">
-                    {Object.entries(snapshot.series).map(([name, points]) => (
-                      <details key={name}>
-                        <summary>
-                          {name} · {points.length} điểm dữ liệu
-                        </summary>
-                        {points.length ? (
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Thời điểm</th>
-                                <th>Giá trị</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {points.map((point) => (
-                                <tr key={point.at}>
-                                  <td>{time(point.at)}</td>
-                                  <td>{number(point.value)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p>Chưa có dữ liệu trong khoảng này.</p>
-                        )}
-                      </details>
-                    ))}
+                <section className="dash-card monitoring-data">
+                  <div className="monitoring-data-header">
+                    <div>
+                      <h2>Số liệu chi tiết</h2>
+                      <span>
+                        {(snapshot.series[seriesKey] || []).length} điểm dữ liệu
+                      </span>
+                    </div>
+                    <label>
+                      <span className="sr-only">Chọn chỉ số</span>
+                      <select
+                        value={seriesKey}
+                        onChange={(event) => setSeriesKey(event.target.value)}
+                      >
+                        {Object.keys(snapshot.series).map((name) => (
+                          <option key={name} value={name}>
+                            {metricNames[name] || name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="monitoring-data-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">Thời gian</th>
+                          <th scope="col">Giá trị</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(snapshot.series[seriesKey] || []).map((point) => (
+                          <tr key={point.at}>
+                            <td>{clock(point.at)}</td>
+                            <td>{number(point.value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!(snapshot.series[seriesKey] || []).length && (
+                      <p className="monitoring-data-empty">
+                        Chưa có dữ liệu trong khoảng đã chọn.
+                      </p>
+                    )}
                   </div>
                 </section>
               </>

@@ -104,7 +104,7 @@ export function AdminCampaignManagement() {
   }
   return <section className="dash-stack" aria-labelledby="campaigns-title">
     <div className="dash-card dash-table-card">
-      <div className="dash-section-heading"><div><h2 id="campaigns-title">Đợt Flash Sale</h2><p>Tạo đợt Flash Sale, chỉnh sửa thời gian và chọn sản phẩm.</p></div><button className="button button-primary" type="button" onClick={() => edit()}>Tạo đợt Flash Sale</button></div>
+      <div className="dash-section-heading"><div><h2 id="campaigns-title">Đợt Flash Sale</h2></div><button className="button button-primary" type="button" onClick={() => edit()}>Tạo đợt Flash Sale</button></div>
       {message && <p className="dash-success-message" role="status">{message}</p>}
       {failure && !formOpen && <p className="campaign-error" role="alert">{failure}</p>}
       {error && <p className="campaign-error" role="alert">{error} <button type="button" onClick={retry}>Tải lại</button></p>}

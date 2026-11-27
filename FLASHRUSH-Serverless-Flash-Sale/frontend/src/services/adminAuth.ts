@@ -1,3 +1,4 @@
+import { authHeaders } from './accountService';
 const storageKey = 'flashrush.adminApiKey.v1';
 
 export function getAdminKey() {
@@ -13,5 +14,7 @@ export function setAdminKey(value: string) {
 
 export function adminHeaders(): Record<string, string> {
   const key = getAdminKey();
+  const bearer = authHeaders();
+  if (bearer.Authorization) return bearer;
   return key ? { 'X-Admin-Key': key } : {};
 }

@@ -35,7 +35,7 @@ function order(value: unknown): OrderRecord {
       typeof details.image !== 'string' || !Number.isInteger(details.quantity) || typeof details.unitPrice !== 'number') {
     throw new Error('Dữ liệu đơn hàng không hợp lệ.');
   }
-  return { orderId: item.orderId, status: item.status as OrderRecord['status'], createdAt: Date.parse(item.createdAt),
+  return { totalAmount: typeof item.totalAmount === 'number' ? item.totalAmount : undefined, orderId: item.orderId, status: item.status as OrderRecord['status'], createdAt: Date.parse(item.createdAt),
     item: { productId: details.productId, name: details.name, image: details.image,
       quantity: Number(details.quantity), unitPrice: details.unitPrice,
       ...(typeof details.totalAmount === 'number' ? { totalAmount: details.totalAmount } : {}),

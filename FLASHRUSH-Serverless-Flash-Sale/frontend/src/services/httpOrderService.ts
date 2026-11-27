@@ -1,3 +1,4 @@
+import { authHeaders } from './accountService';
 import type { OrderService } from './orderService';
 import type { OrderRecord, OrderStatus } from '../types/order';
 import { productService } from './productService';
@@ -31,7 +32,7 @@ function identity(data: Record<string, unknown>) {
 }
 export const httpOrderService: OrderService = {
   async submit(intent) {
-    const data = await request('/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': intent.key }, body: JSON.stringify({ productId: intent.item.productId, quantity: intent.item.quantity }) });
+    const data = await request('/orders', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json', 'Idempotency-Key': intent.key }, body: JSON.stringify({ productId: intent.item.productId, quantity: intent.item.quantity }) });
     return { ...identity(data), item: intent.item, createdAt: intent.createdAt };
   },
   async getOrder(orderId, key): Promise<OrderRecord> {

@@ -39,8 +39,7 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
     const images = draft.images.split(',').map(value => value.trim()).filter(Boolean);
     try {
       if (editing) {
-        const stockDelta = draft.stock.trim() ? Number(draft.stock) : undefined;
-        if (stockDelta !== undefined && (!Number.isInteger(stockDelta) || stockDelta === 0)) throw new Error('Điều chỉnh tồn kho phải là số nguyên khác 0.');
+        const stockDelta = undefined;
         await dashboardService.updateProduct(editing.productId, { name: draft.name.trim(), category: draft.category.trim(),
           description: draft.description, price: Number(draft.price), originalPrice: Number(draft.originalPrice), images,
           saleStartsAt: draft.saleStartsAt ? new Date(draft.saleStartsAt).toISOString() : undefined,
@@ -62,7 +61,7 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
   return (
     <section className="dash-card dash-table-card" aria-labelledby="dash-products">
       <div className="dash-section-heading">
-        <div><h2 id="dash-products">Sản phẩm Flash Sale</h2><p>Tồn kho của các mặt hàng trong đợt Flash Sale</p></div>
+        <div><h2 id="dash-products">Sản phẩm Flash Sale</h2></div>
         <div className="dash-table-actions"><span>{products.length} mặt hàng</span>
           <button type="button" className="dash-text-link" onClick={() => { onRefresh?.(); }}>Làm mới</button>
           <button type="button" className="button button-primary" onClick={() => begin()}>Thêm sản phẩm</button></div>
@@ -76,7 +75,7 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
           <label>Danh mục<input required value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value })} /></label>
           <label>Giá Flash Sale<input required type="number" min="0" step="1" value={draft.price} onChange={event => setDraft({ ...draft, price: event.target.value })} /></label>
           <label>Giá gốc<input required type="number" min="0" step="1" value={draft.originalPrice} onChange={event => setDraft({ ...draft, originalPrice: event.target.value })} /></label>
-          <label>{editing ? 'Điều chỉnh tồn kho (+/-)' : 'Tồn kho ban đầu'}<input type="number" step="1" required={!editing} value={draft.stock} onChange={event => setDraft({ ...draft, stock: event.target.value })} /></label>
+          {editing ? <p>Điều chỉnh số lượng tại <Link to="/admin/inventory">Tồn kho</Link> để lưu lịch sử nhập/xuất.</p> : <label>Tồn kho ban đầu<input type="number" step="1" required value={draft.stock} onChange={event => setDraft({ ...draft, stock: event.target.value })} /></label>}
           <label>Mở bán<input type="datetime-local" value={draft.saleStartsAt} onChange={event => setDraft({ ...draft, saleStartsAt: event.target.value })} /></label>
           <label>Kết thúc sale<input required type="datetime-local" value={draft.saleEndsAt} onChange={event => setDraft({ ...draft, saleEndsAt: event.target.value })} /></label>
           <label className="dash-product-form-wide">URL ảnh, phân cách bằng dấu phẩy<input required value={draft.images} onChange={event => setDraft({ ...draft, images: event.target.value })} /></label>
@@ -147,12 +146,12 @@ export function AdminOrdersTable() {
         ? [1, 'start-gap', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
         : [1, 'start-gap', pageNumber - 1, pageNumber, pageNumber + 1, 'end-gap', totalPages];
   return <section className="dash-card dash-table-card" aria-labelledby="dash-admin-orders">
-    <div className="dash-section-heading"><div><h2 id="dash-admin-orders">Đơn hàng</h2><p>Dữ liệu trực tiếp từ DynamoDB</p></div>
-      <div className="dash-table-actions"><label>Trạng thái<select value={status} onChange={event => changeStatus(event.target.value)}><option value="">Tất cả</option>{['PENDING','PROCESSING','CONFIRMED','OUT_OF_STOCK','FAILED'].map(value => <option key={value}>{value}</option>)}</select></label>
+    <div className="dash-section-heading"><div><h2 id="dash-admin-orders">Đơn hàng</h2></div>
+      <div className="dash-table-actions"><label className="admin-status-filter"><span className="sr-only">Lọc trạng thái đơn hàng</span><select aria-label="Lọc trạng thái đơn hàng" value={status} onChange={event => changeStatus(event.target.value)}><option value="">Tất cả</option>{['PENDING','PROCESSING','CONFIRMED','OUT_OF_STOCK','FAILED'].map(value => <option key={value} value={value}>{{PENDING:'Đang chờ',PROCESSING:'Đang xử lý',CONFIRMED:'Đã xác nhận',OUT_OF_STOCK:'Hết hàng',FAILED:'Thất bại'}[value]}</option>)}</select></label>
         <button type="button" className="dash-text-link" disabled={loading} onClick={() => setVersion(value => value + 1)}>Làm mới</button></div>
     </div>
     {error && <p className="campaign-error" role="alert">{error}</p>}{loading ? <p role="status">Đang tải đơn hàng...</p> : orders.length === 0 ? <EmptyState title="Chưa có đơn hàng" description="Không có đơn hàng phù hợp bộ lọc." /> :
-      <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{formatPrice(order.item.totalAmount ?? order.item.unitPrice * order.item.quantity)}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
+      <div className="dash-scroll-table" role="region" aria-labelledby="dash-admin-orders" tabIndex={0}><table><thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổng tiền</th><th>Thời gian</th><th>Trạng thái</th></tr></thead><tbody>{orders.map(order => <tr key={order.orderId}><th scope="row">#{order.orderId}</th><td>{order.item.name}</td><td>{order.item.quantity}</td><td>{formatPrice(order.item.totalAmount ?? order.totalAmount ?? order.item.unitPrice * order.item.quantity)}</td><td><time dateTime={new Date(order.createdAt).toISOString()}>{formatTime(order.createdAt)}</time></td><td><OrderStatusBadge status={order.status} /></td></tr>)}</tbody></table></div>}
     {!loading && totalPages > 1 && <div className="dash-pagination">
       <span className="dash-pagination-count">{totalCount.toLocaleString('vi-VN')} đơn hàng</span>
       <nav aria-label="Phân trang đơn hàng" className="dash-pagination-controls">
@@ -175,7 +174,7 @@ export function RecentOrdersTable({ orders, recent = false }: { orders: OrderRec
   return (
     <section className="dash-card dash-table-card" aria-labelledby="dash-orders">
       <div className="dash-section-heading">
-        <div><h2 id="dash-orders">{recent ? 'Đơn hàng gần đây' : 'Đơn hàng Flash Sale'}</h2><p>Các yêu cầu đặt hàng trong đợt Flash Sale</p></div>
+        <div><h2 id="dash-orders">{recent ? 'Đơn hàng gần đây' : 'Đơn hàng Flash Sale'}</h2></div>
         {recent && orders.length > shown.length && <Link className="dash-text-link" to="/admin/orders">Xem tất cả {orders.length} đơn</Link>}
       </div>
       {shown.length === 0 ? (

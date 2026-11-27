@@ -272,3 +272,79 @@
 .monitoring-chart-select select { max-width: 100%; border: 1px solid #e2e8f0; background: white; border-radius: 8px; padding: 8px; }
 @media (max-width: 1000px) { .monitoring-charts-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 480px) { .monitoring-chart { height: 230px; } }
+
+.account-page { padding-block: 40px; max-width: 1000px; }
+.account-form { display: grid; gap: 16px; max-width: 640px; padding: 24px; }
+.account-form label { display: grid; gap: 8px; font-weight: 600; }
+.account-form input, .account-form select, .dash-admin-body > label input { min-height: 44px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; width: 100%; background: white; color: #172033; }
+.account-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.inventory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 24px; }
+.inventory-grid article { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+.business-table { overflow-x: auto; padding: 24px; }
+.business-table table { width: 100%; border-collapse: collapse; }
+.business-table th, .business-table td { text-align: left; padding: 14px; border-bottom: 1px solid #e2e8f0; }
+
+/* Compact monitoring workspace */
+.dash-topbar-inner { min-height: 60px; }
+.dash-sidebar { top: 60px; height: calc(100vh - 60px); padding-top: 14px; }
+.monitoring-body { gap: 16px; }
+.monitoring-body > .dash-card { padding: 20px; }
+.monitoring-body h2 { font-size: 16px; font-weight: 750; }
+.dash-monitor-heading { gap: 16px; }
+.dash-monitor-heading h1 { font-size: 23px; }
+.dash-monitor-actions { font-size: 12px; gap: 12px; }
+.dash-monitor-actions label { display: inline-flex; align-items: center; gap: 7px; }
+.monitoring-connection { border: 1px solid var(--dash-border); border-radius: 10px; background: #fff; }
+.monitoring-connection > summary { cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 12px 16px; font-size: 12px; font-weight: 650; list-style: none; }
+.monitoring-connection > summary::after { content: '+'; margin-left: 8px; color: #64748b; }
+.monitoring-connection[open] > summary::after { content: '−'; }
+.connection-state { margin-left: auto; font-weight: 400; color: #64748b; }
+.connection-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+.connection-dot.is-connected { background: #059669; }
+.monitoring-connection .dash-admin-auth { padding: 0 16px 16px; }
+.monitoring-connection input { flex: 1; min-width: 140px; }
+.monitoring-source { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; font-size: 12px; color: #64748b; padding: 0 2px; }
+.monitoring-source-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.monitoring-region { background: #eaf0f8; border-radius: 5px; padding: 4px 7px; color: #475569; font-weight: 650; font-size: 11px; }
+.monitoring-source details { position: relative; }
+.monitoring-source summary { cursor: pointer; font-size: 11px; }
+.monitoring-source details p { max-width: 360px; padding: 10px 0; line-height: 1.6; }
+.monitoring-queue-grid { margin-top: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.monitoring-queue-grid > div { padding: 12px; border: 1px solid #eef0f5; background: #fafbfe; border-radius: 8px; }
+.monitoring-queue-grid dd { font-size: 24px; margin-top: 6px; }
+.monitoring-queue-grid small { font-size: 10px; }
+.monitoring-charts-grid { gap: 18px; margin-top: 18px; }
+.monitoring-chart-heading { margin-bottom: 8px; }
+.monitoring-chart-heading h3 { font-size: 12px; }
+.monitoring-chart { height: 200px; }
+.monitoring-chart-empty { min-height: 200px; }
+.monitoring-data-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 16px; }
+.monitoring-data-header > div { display: flex; align-items: baseline; gap: 12px; }
+.monitoring-data-header span { font-size: 11px; color: #64748b; }
+.monitoring-data-header select { background: #fff; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px; font-size: 12px; max-width: 100%; }
+.monitoring-data-scroll { max-height: 280px; overflow: auto; border: 1px solid #edf0f5; border-radius: 8px; }
+.monitoring-data-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.monitoring-data-scroll th { position: sticky; top: 0; background: #f8fafc; color: #64748b; font-weight: 600; }
+.monitoring-data-scroll th, .monitoring-data-scroll td { padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f3f7; }
+.monitoring-data-scroll th:last-child, .monitoring-data-scroll td:last-child { text-align: right; }
+.monitoring-data-empty { padding: 24px; text-align: center; color: #64748b; }
+@media (min-width: 1001px) { .monitoring-charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .monitoring-queue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .monitoring-data-header label, .monitoring-data-header select { width: 100%; } .monitoring-updated { width: 100%; } .monitoring-body > .dash-card { padding: 14px; } .monitoring-connection .dash-admin-auth input { width: 100%; flex-basis: 100%; } }
+
+/* One toolbar per management tab. */
+.admin-compact-header { min-height: 68px; padding-block: 14px; }
+.admin-compact-header h1, .dash-admin-header > h1 { font-size: 22px; }
+.dash-table-card > .dash-section-heading { align-items: center; margin-bottom: 16px; gap: 12px; }
+.dash-table-card > .dash-section-heading h2 { font-size: 17px; margin: 0; }
+.admin-status-filter { display: inline-flex; }
+.admin-status-filter select { width: 140px; min-height: 34px; padding: 6px 10px; font-size: 12px; }
+.dash-table-actions { gap: 10px; }
+.business-table h2 { font-size: 17px; }
+.dash-admin-header:has(> h1) { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+@media (max-width: 640px) { .dash-admin-body { padding: 16px 14px; } .dash-table-card > .dash-section-heading { flex-wrap: wrap; } .admin-status-filter select { width: 125px; } }
+
+.inventory-table .stock-number { font-weight: 750; font-variant-numeric: tabular-nums; }
+.stock-label { display: inline-flex; background: #ecfdf5; color: #047857; padding: 4px 8px; border-radius: 5px; white-space: nowrap; font-size: 11px; }
+.stock-label.is-low { background: #fffbeb; color: #92400e; }
+.stock-label.is-empty { background: #fff1f2; color: #be123c; }
+.voucher-search { border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 7px; margin: 16px 0; }

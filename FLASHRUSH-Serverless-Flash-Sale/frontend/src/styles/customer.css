@@ -149,3 +149,10 @@
   .commerce-page .cart-total small { font-size: 10px; }
   .checkout-payable { font-size: 17px; }
 }
+.voucher-apply { display: grid; gap: 12px; }
+.voucher-apply h2 { font-size: 17px; }
+.voucher-apply p, .voucher-totals small { font-size: 12px; color: #64748b; }
+.voucher-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.voucher-controls input { flex: 1; min-width: 140px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px; text-transform: uppercase; }
+.voucher-totals { display: grid; gap: 6px; font-size: 14px; }
+.voucher-order-summary { padding-block: 12px; text-align: right; }

@@ -123,5 +123,8 @@ export async function getMonitoring(
       `Chưa đọc được CloudWatch (HTTP ${response.status}). Vui lòng thử lại.`,
     );
   }
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("API giám sát trả về sai định dạng. Kiểm tra proxy /api và khởi động lại server local.");
+  }
   return parseMonitoring(await response.json());
 }
