@@ -1,7 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCustomer } from '../components/customer/CustomerProvider';
-import { customerConfigured, signUp, confirmSignUp, resendConfirmation, forgotPassword, resetPassword } from '../services/customerAuth';
+import { NewPasswordRequired, customerConfigured, signUp, confirmSignUp, resendConfirmation, forgotPassword, resetPassword } from '../services/customerAuth';
+import { businessRequest } from '../services/accountService';
+import { resolveLoginDestination } from '../services/unifiedLogin';
 import { EmptyState } from '../components/common/EmptyState';
 
 export function CustomerGate({ children }: { children: ReactNode }) {
@@ -15,23 +17,30 @@ export function CustomerAuthPage() {
   const { login, user, ready, notify } = useCustomer();
   const [params] = useSearchParams();
   const [mode, setMode] = useState(params.get('mode') === 'register' ? 'register' : 'login');
+  const [challenge, setChallenge] = useState('');
   const [email, setEmail] = useState(''); const [name, setName] = useState('');
   const [password, setPassword] = useState(''); const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const navigate = useNavigate();
   const target = params.get('next') || '/account';
-  const next = /^\/(?:cart(?:\/checkout)?|products(?:\/[^?#]*)?|account(?:\/[^?#]*)?)(?:\?[^#]*)?$/.test(target) ? target : '/account';
-  if (ready && user) return <Navigate to={next} replace />;
-  const titles: Record<string, string> = { login: 'Đăng nhập', register: 'Tạo tài khoản', confirm: 'Xác minh email', forgot: 'Quên mật khẩu', reset: 'Đặt lại mật khẩu' };
+  useEffect(() => {
+    if (!ready || !user || busy || error) return;
+    let active = true;
+    resolveLoginDestination(target).then(destination => { if (active) navigate(destination, { replace: true }); })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Không kiểm tra được quyền.'); });
+    return () => { active = false; };
+  }, [ready, user, busy, error, target, navigate]);
+  const titles: Record<string, string> = { login: 'Đăng nhập', register: 'Tạo tài khoản', confirm: 'Xác minh email', forgot: 'Quên mật khẩu', reset: 'Đặt lại mật khẩu', 'new-password': 'Đổi mật khẩu lần đầu' };
   async function submit(event: FormEvent) {
     event.preventDefault(); if (busy) return; setBusy(true); setError('');
     try {
-      if (mode === 'login') { await login(email, password); setPassword(''); navigate(next, { replace: true }); }
+      if (mode === 'login' || mode === 'new-password') { if (mode === 'new-password') await businessRequest('/auth/new-password', 'POST', { email, password, session: challenge }); await login(email, password); setPassword(''); const destination = await resolveLoginDestination(target); navigate(destination, { replace: true }); }
       if (mode === 'register') { await signUp(email, password, name); setPassword(''); setMode('confirm'); notify('Kiểm tra email để nhận mã xác minh.'); }
       if (mode === 'confirm') { await confirmSignUp(email, code); setMode('login'); setCode(''); notify('Email đã xác minh. Bạn có thể đăng nhập.'); }
       if (mode === 'forgot') { await forgotPassword(email); setMode('reset'); notify('Nếu tài khoản tồn tại, mã khôi phục sẽ được gửi đến email.'); }
       if (mode === 'reset') { await resetPassword(email, code, password); setPassword(''); setCode(''); setMode('login'); notify('Đã đổi mật khẩu. Vui lòng đăng nhập.'); }
     } catch (reason) {
+      if (reason instanceof NewPasswordRequired) { setChallenge(reason.session); setMode('new-password'); setPassword(''); }
       if (reason instanceof Error && reason.name === 'UserNotConfirmedException') { setMode('confirm'); setPassword(''); }
       setError(reason instanceof Error ? reason.message : 'Không thể kết nối dịch vụ đăng nhập.');
     } finally { setBusy(false); }
@@ -41,7 +50,7 @@ export function CustomerAuthPage() {
     {!customerConfigured && <p className="customer-warning" role="status">Chưa cấu hình Cognito cho môi trường này. Các nút xác thực sẽ hoạt động khi có kết nối thật.</p>}
     {mode === 'register' && <label>Họ tên<input required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} /></label>}
     <label>Email<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
-    {['login', 'register', 'reset'].includes(mode) && <label>Mật khẩu<input aria-label="Mật khẩu" required type="password" minLength={mode === 'login' ? 1 : 12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} />{mode !== 'login' && <small>Tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>}</label>}
+    {['login', 'register', 'reset', 'new-password'].includes(mode) && <label>Mật khẩu<input aria-label="Mật khẩu" required type="password" minLength={mode === 'login' ? 1 : 12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} />{mode !== 'login' && <small>Tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>}</label>}
     {['confirm', 'reset'].includes(mode) && <label>Mã xác minh<input required inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} /></label>}
     {error && <p role="alert" className="order-error">{error}</p>}
     <button className="button button-primary" disabled={busy || !customerConfigured}>{busy ? 'Đang xử lý…' : titles[mode]}</button>

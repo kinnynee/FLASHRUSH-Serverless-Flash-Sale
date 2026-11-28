@@ -1,3 +1,4 @@
+import { clearStaffSession } from './accountService';
 import {
   CognitoIdentityProviderClient, InitiateAuthCommand, SignUpCommand, ConfirmSignUpCommand,
   ResendConfirmationCodeCommand, ForgotPasswordCommand, ConfirmForgotPasswordCommand,
@@ -21,10 +22,11 @@ function required() {
   if (!customerConfigured) throw new Error('Chức năng tài khoản chưa được cấu hình Cognito. Cần triển khai backend và cấu hình kết nối trước khi sử dụng.');
 }
 export function clearCustomerSession() {
+  clearStaffSession();
   generation++;
   refreshing = undefined;
   sessionStorage.removeItem(storageKey);
-  window.dispatchEvent(new Event('customer-session-expired'));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('customer-session-expired'));
 }
 export async function accessToken(): Promise<string> {
   required();
@@ -60,12 +62,16 @@ export async function currentCustomer(): Promise<CustomerIdentity | null> {
     throw error;
   }
 }
+export class NewPasswordRequired extends Error {
+  constructor(public session: string) { super('Đặt mật khẩu mới để hoàn tất đăng nhập.'); }
+}
 export async function signIn(email: string, password: string) {
   required();
   clearCustomerSession();
   const current = generation;
   const result = await client.send(new InitiateAuthCommand({ ClientId: clientId, AuthFlow: 'USER_PASSWORD_AUTH', AuthParameters: { USERNAME: email, PASSWORD: password } }));
   if (current !== generation) throw new Error('Phiên đăng nhập đã thay đổi.');
+  if (result.ChallengeName === 'NEW_PASSWORD_REQUIRED' && result.Session) throw new NewPasswordRequired(result.Session);
   const auth = result.AuthenticationResult;
   if (!auth?.AccessToken || !auth.RefreshToken) throw new Error('Tài khoản yêu cầu bước xác minh bổ sung. Vui lòng liên hệ hỗ trợ.');
   sessionStorage.setItem(storageKey, JSON.stringify({ access: auth.AccessToken, refresh: auth.RefreshToken, expires: Date.now() + (auth.ExpiresIn || 600) * 1000 }));

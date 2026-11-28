@@ -1,7 +1,6 @@
 import { ShoppingCart, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Navbar } from './Navbar';
 import { SearchBar } from './SearchBar';
 import { BrandLogo } from './BrandLogo';
 import { useCustomer } from '../customer/CustomerProvider';
@@ -30,8 +29,6 @@ export function Header() {
             <div className="mini-cart-items">{cart?.items.slice(0, 5).map(line => <Link key={line.lineId} className="mini-cart-line" to={'/products/' + encodeURIComponent(line.productId)} onClick={close}><ProductImage src={line.product?.images[0] || ''} alt={line.product?.name || line.productId} /><span>{line.product?.name || line.productId}<small>Số lượng: {line.quantity}</small></span><strong>{formatPrice(line.product?.price ?? line.unitPrice)}</strong></Link>)}</div>
             <Link className="button button-primary" onClick={close} to="/cart">Xem giỏ hàng</Link>
           </>}
-          {kind === 'account' && <Navbar />}
-          {kind === 'account' && <Link className="admin-menu-link" to="/admin" onClick={close}>Quản trị hệ thống</Link>}
         </section>}
       </div>)}
     </div>}</div>

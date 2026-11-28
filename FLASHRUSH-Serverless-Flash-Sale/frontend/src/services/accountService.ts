@@ -26,6 +26,14 @@ export function authHeaders(): Record<string, string> {
   const token = accessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
+// Accept only a token whose staff roles were verified by /auth/me.
+export function useVerifiedStaffToken(token: string, expiresAt: number) {
+  clearStaffSession();
+  if (!token || expiresAt <= Date.now()) throw new Error('Phiên đăng nhập đã hết hạn.');
+  sessionStorage.setItem(tokenKey(), token);
+  sessionStorage.setItem(tokenKey() + ':expires', String(expiresAt));
+  window.dispatchEvent(new Event('staff-session-changed'));
+}
 export async function businessRequest(
   path: string,
   method = "GET",
@@ -70,6 +78,8 @@ export async function login(email: string, password: string, session?: string) {
 export async function logout() {
   const token = accessToken();
   clearStaffSession();
+  const { clearCustomerSession } = await import('./customerAuth');
+  clearCustomerSession();
   try {
     if (token) await fetch(`${String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')}/auth/logout`, {
       method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(15000),

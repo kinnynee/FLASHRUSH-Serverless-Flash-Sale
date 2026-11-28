@@ -1,13 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react';
 import './styles/vouchers.css';
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { CustomerProvider } from './components/customer/CustomerProvider';
 import { CustomerAuthPage } from './pages/CustomerAuthPage';
 import { CartPage } from './pages/CartPage';
 import { VouchersPage } from './pages/VouchersPage';
 import { CustomerAccountPage, CustomerOrderPage } from './pages/CustomerAccountPage';
 
-import { AccountPage } from './pages/AccountPage';
 import { AdminVouchersPage } from './pages/AdminVouchersPage';
 import { BusinessAdminPage } from './pages/BusinessAdminPage';
 import { Header } from './components/layout/Header';
@@ -59,7 +58,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductListingPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
-        <Route path="/staff/login" element={<AccountPage />} />
+        <Route path="/staff/login" element={<Navigate to="/auth?next=/admin" replace />} />
         <Route path="/auth" element={<CustomerAuthPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/cart/checkout" element={<CartPage checkoutMode />} />
