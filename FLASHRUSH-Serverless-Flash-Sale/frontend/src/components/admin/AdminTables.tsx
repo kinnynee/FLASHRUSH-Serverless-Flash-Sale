@@ -7,6 +7,7 @@ import type { OrderRecord } from '../../types/order';
 import type { Product } from '../../types/product';
 import { dashboardService } from '../../services/dashboardService';
 import { formatPrice } from '../../utils/product';
+import { productFormFields } from '../../utils/adminProduct';
 import { EmptyState } from '../common/EmptyState';
 import { ProductImage } from '../common/ProductImage';
 import { OrderStatusBadge } from '../order/OrderStatusBadge';
@@ -38,26 +39,24 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(''); setFailure('');
-    const images = draft.images.split(',').map(value => value.trim()).filter(Boolean);
     try {
+      const fields = productFormFields(draft);
       if (editing) {
         const stockDelta = undefined;
-        await dashboardService.updateProduct(editing.productId, { name: draft.name.trim(), category: draft.category.trim(),
-          description: draft.description, price: Number(draft.price), originalPrice: Number(draft.originalPrice), images,
-          saleStartsAt: draft.saleStartsAt ? new Date(draft.saleStartsAt).toISOString() : undefined,
-          saleEndsAt: new Date(draft.saleEndsAt).toISOString() }, stockDelta);
-        setMessage('Đã cập nhật sản phẩm và tồn kho.');
+        await dashboardService.updateProduct(editing.productId, fields, stockDelta);
+        setMessage('Đã cập nhật sản phẩm.');
       } else {
         const stock = Number(draft.stock);
-        const input = { productId: draft.productId.trim(), name: draft.name.trim(), category: draft.category.trim(), description: draft.description,
-          price: Number(draft.price), originalPrice: Number(draft.originalPrice), stock, initialStock: stock, images,
-          isFlashSale: true, saleStartsAt: draft.saleStartsAt ? new Date(draft.saleStartsAt).toISOString() : undefined,
-          saleEndsAt: new Date(draft.saleEndsAt).toISOString() } as Product;
+        if (!draft.productId.trim()) throw new Error('Vui lòng nhập mã sản phẩm.');
+        if (!draft.stock.trim() || !Number.isSafeInteger(stock) || stock < 0) throw new Error('Tồn kho ban đầu phải là số nguyên không âm.');
+        const input: Product = { ...fields, productId: draft.productId.trim(), stock, initialStock: stock, isFlashSale: true };
         await dashboardService.createProduct(input);
         setMessage('Đã tạo sản phẩm.');
       }
       setOpen(false); onRefresh?.();
-    } catch (reason) { setFailure(reason instanceof Error ? reason.message : 'Không thể lưu sản phẩm.'); }
+    } catch (reason) { setFailure(reason instanceof Error
+      ? reason.message === 'INVALID_REQUEST' ? 'API từ chối dữ liệu sản phẩm. Kiểm tra mô tả, đường dẫn ảnh, giá, tồn kho và thời gian sale.' : reason.message
+      : 'Không thể lưu sản phẩm.'); }
     finally { setBusy(false); }
   }
   return (
@@ -74,14 +73,14 @@ export function ProductInventoryTable({ products, onRefresh }: { products: Dashb
         <div className="dash-product-form-grid">
           <label>Mã sản phẩm<input required disabled={!!editing} maxLength={128} value={draft.productId} onChange={event => setDraft({ ...draft, productId: event.target.value })} /></label>
           <label>Tên<input required maxLength={160} value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
-          <label>Danh mục<input required value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value })} /></label>
+          <label>Danh mục<input required maxLength={2000} value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value })} /></label>
           <label>Giá Flash Sale<input required type="number" min="0" step="1" value={draft.price} onChange={event => setDraft({ ...draft, price: event.target.value })} /></label>
           <label>Giá gốc<input required type="number" min="0" step="1" value={draft.originalPrice} onChange={event => setDraft({ ...draft, originalPrice: event.target.value })} /></label>
-          {editing ? <p>Điều chỉnh số lượng tại <Link to="/admin/inventory">Tồn kho</Link> để lưu lịch sử nhập/xuất.</p> : <label>Tồn kho ban đầu<input type="number" step="1" required value={draft.stock} onChange={event => setDraft({ ...draft, stock: event.target.value })} /></label>}
+          {editing ? <p>Điều chỉnh số lượng tại <Link to="/admin/inventory">Tồn kho</Link> để lưu lịch sử nhập/xuất.</p> : <label>Tồn kho ban đầu<input type="number" min="0" step="1" required value={draft.stock} onChange={event => setDraft({ ...draft, stock: event.target.value })} /></label>}
           <label>Mở bán<input type="datetime-local" value={draft.saleStartsAt} onChange={event => setDraft({ ...draft, saleStartsAt: event.target.value })} /></label>
           <label>Kết thúc sale<input required type="datetime-local" value={draft.saleEndsAt} onChange={event => setDraft({ ...draft, saleEndsAt: event.target.value })} /></label>
-          <label className="dash-product-form-wide">URL ảnh, phân cách bằng dấu phẩy<input required value={draft.images} onChange={event => setDraft({ ...draft, images: event.target.value })} /></label>
-          <label className="dash-product-form-wide">Mô tả<textarea value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
+          <label className="dash-product-form-wide">URL ảnh, phân cách bằng dấu phẩy<input required placeholder="https://example.com/product.jpg" aria-describedby="product-image-help" value={draft.images} onChange={event => setDraft({ ...draft, images: event.target.value })} /><small id="product-image-help">Nhập đường dẫn ảnh http/https, không dùng data:image hoặc nội dung base64.</small></label>
+          <label className="dash-product-form-wide">Mô tả (bắt buộc)<textarea required maxLength={2000} value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
         </div>
         <div className="dash-product-form-actions"><button className="button button-primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu sản phẩm'}</button><button type="button" className="button button-secondary" onClick={() => setOpen(false)}>Hủy</button></div>
       </form>}
