@@ -1,5 +1,7 @@
 name: Deploy AWS main
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       target:
@@ -14,10 +16,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: flashrush-${{ inputs.environment }}
+  group: flashrush-${{ inputs.target || 'lab' }}
   cancel-in-progress: false
 jobs:
   checks:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     permissions:
@@ -78,4 +81,54 @@ jobs:
         with:
           name: release-evidence-${{ github.run_id }}
           path: FLASHRUSH-Serverless-Flash-Sale/.build/release
+          retention-days: 14
+
+  publish-lab-frontend:
+    name: Test and publish lab frontend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: FLASHRUSH-Serverless-Flash-Sale
+    env:
+      VITE_ORDER_MODE: http
+      VITE_API_BASE_URL: https://7h0r2fxsha.execute-api.us-east-1.amazonaws.com
+      VITE_COGNITO_REGION: us-east-1
+      VITE_COGNITO_CLIENT_ID: 5h7dn6hr6iub9ghat5jiir4ipg
+      VITE_DEMO_SERVICE_ERROR: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: FLASHRUSH-Serverless-Flash-Sale/frontend/package-lock.json
+      - run: pip install -r backend/requirements-lock.txt
+      - run: python -m unittest discover -s backend -p 'test_*.py'
+      - run: python -m unittest discover -s scripts/deploy -p 'test_*.py'
+      - run: python -m unittest discover -s scripts/ops -p 'test_*.py'
+      - run: npm ci --prefix frontend
+      - run: npm run lint --prefix frontend
+      - run: npm test --prefix frontend
+      - run: npm audit --prefix frontend --audit-level=high
+      - run: npm run build --prefix frontend
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::303278700480:role/flashrush-github-lab-frontend
+          aws-region: us-east-1
+          allowed-account-ids: '303278700480'
+      - name: Publish frontend, invalidate and verify
+        run: python scripts/ci/publish_lab_frontend.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lab-frontend-release-${{ github.run_id }}
+          path: FLASHRUSH-Serverless-Flash-Sale/.build/frontend-release
           retention-days: 14
