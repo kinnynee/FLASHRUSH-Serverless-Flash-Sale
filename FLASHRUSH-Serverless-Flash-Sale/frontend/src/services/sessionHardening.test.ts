@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { accessToken, login, logout, businessRequest, clearStaffSession } from './accountService';
+import { accessToken, login, logout, businessRequest, clearStaffSession, useVerifiedStaffToken, staffSessionVersion } from './accountService';
 import { staffCanVisit } from '../components/admin/StaffGate';
 
 const response = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type':'application/json' } });
@@ -46,4 +46,14 @@ it('matches role-specific UI permissions including voucher management', () => {
     expect(staffCanVisit([role],'/admin/inventory')).toBe(['owner','manager','warehouse'].includes(role));
     expect(staffCanVisit([role],'/admin/users')).toBe(role==='owner');
   }
+});
+
+it('keeps in-flight staff requests valid when adopting the same verified token twice', () => {
+  const expires=Date.now()+600000;
+  vi.stubGlobal('window',{dispatchEvent:vi.fn()});
+  useVerifiedStaffToken('verified',expires);
+  const version=staffSessionVersion();
+  useVerifiedStaffToken('verified',expires);
+  expect(staffSessionVersion()).toBe(version);
+  expect(accessToken()).toBe('verified');
 });

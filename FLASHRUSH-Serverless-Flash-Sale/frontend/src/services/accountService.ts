@@ -28,8 +28,9 @@ export function authHeaders(): Record<string, string> {
 }
 // Accept only a token whose staff roles were verified by /auth/me.
 export function useVerifiedStaffToken(token: string, expiresAt: number) {
-  clearStaffSession();
   if (!token || expiresAt <= Date.now()) throw new Error('Phiên đăng nhập đã hết hạn.');
+  if (accessToken() === token && Number(sessionStorage.getItem(tokenKey() + ':expires')) === expiresAt) return;
+  clearStaffSession();
   sessionStorage.setItem(tokenKey(), token);
   sessionStorage.setItem(tokenKey() + ':expires', String(expiresAt));
   window.dispatchEvent(new Event('staff-session-changed'));
