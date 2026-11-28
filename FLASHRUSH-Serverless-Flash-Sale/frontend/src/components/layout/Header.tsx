@@ -12,12 +12,13 @@ export function Header() {
   const { user, ready, cart, loading, error, logout, refreshCart } = useCustomer();
   const [panel, setPanel] = useState({ key: '', value: '' });
   const location = useLocation();
+  const isStaffLogin = location.pathname.replace(/\/+$/, '').toLowerCase() === '/staff/login';
   const opened = panel.key === location.key ? panel.value : '';
   const close = () => setPanel({ key: '', value: '' });
   const open = (value: string) => setPanel({ key: location.key, value });
   const count = cart?.items.reduce((sum, line) => sum + line.quantity, 0) || 0;
   return <><a className="skip-link" href="#main-content">Đến nội dung chính</a><header className="site-header">
-    <div className="container header-inner"><BrandLogo /><SearchBar /><div className="header-actions">
+    <div className="container header-inner"><BrandLogo />{!isStaffLogin && <SearchBar />}{!isStaffLogin && <div className="header-actions">
       {['cart', 'account'].map(kind => <div className="header-dropdown" key={kind} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }} onKeyDown={event => { if (event.key === 'Escape') { close(); event.currentTarget.querySelector('button')?.focus(); } }}>
         <button className="header-menu-trigger" aria-expanded={opened === kind} aria-controls={'header-' + kind} onClick={() => opened === kind ? close() : open(kind)}>{kind === 'cart' ? <ShoppingCart size={23} /> : <UserRound size={23} />}<span className="sr-only">{kind === 'cart' ? 'Giỏ hàng' : 'Tài khoản'}</span>{kind === 'cart' && user && cart && count > 0 && <b className="cart-badge" aria-label={count + ' sản phẩm trong giỏ'}>{count}</b>}</button>
         {opened === kind && <section id={'header-' + kind} className="header-popover customer-popover" aria-label={kind === 'cart' ? 'Giỏ hàng' : 'Tài khoản'}>
@@ -33,7 +34,7 @@ export function Header() {
           {kind === 'account' && <Link className="admin-menu-link" to="/admin" onClick={close}>Quản trị hệ thống</Link>}
         </section>}
       </div>)}
-    </div></div>
+    </div>}</div>
 
   </header></>;
 }

@@ -25,7 +25,9 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 const MonitoringDashboardPage = lazy(() => import('./pages/MonitoringDashboardPage').then(module => ({ default: module.MonitoringDashboardPage })));
 
 function StorefrontLayout() {
-  return <CustomerProvider><div className="storefront"><Header /><main id="main-content" tabIndex={-1}><Outlet /></main><Footer /></div></CustomerProvider>;
+  const { pathname } = useLocation();
+  const isStaffLogin = pathname.replace(/\/+$/, '').toLowerCase() === '/staff/login';
+  return <CustomerProvider><div className="storefront">{!isStaffLogin && <Header />}<main id="main-content" tabIndex={-1}><Outlet /></main>{!isStaffLogin && <Footer />}</div></CustomerProvider>;
 }
 
 export default function App() {

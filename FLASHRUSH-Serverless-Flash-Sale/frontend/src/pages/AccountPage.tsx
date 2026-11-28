@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { LockKeyhole, Mail } from "lucide-react";
+import "../styles/staff-login.css";
+import { BrandLogo } from "../components/layout/BrandLogo";
 import {
   accessToken,
   businessRequest,
@@ -86,9 +89,9 @@ export function AccountPage() {
     "new-password": "Đổi mật khẩu lần đầu",
   };
   return (
-    <div className="container account-page">
-      <h1>{account ? "Tài khoản của bạn" : labels[mode]}</h1>
-      {message && (
+    <div className={account ? "container account-page" : "staff-login-page"}>
+      {account && <h1>Tài khoản của bạn</h1>}
+      {account && message && (
         <p role="status" className="order-notice">
           {message}
         </p>
@@ -113,16 +116,23 @@ export function AccountPage() {
 
         </>
       ) : (
-        <form className="order-panel account-form" onSubmit={submit}>
+        <form className="staff-login-card" onSubmit={submit}>
+          <BrandLogo />
+          <h1>{mode === "login" ? "Đăng nhập Admin" : labels[mode]}</h1>
+          {message && <p role="status" className="order-notice">{message}</p>}
           <label>
             Email
+            <span className="staff-login-input">
+              <Mail size={19} strokeWidth={1.6} aria-hidden="true" />
             <input
               type="email"
+              placeholder="Nhập email..."
               autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            </span>
           </label>
           {mode === "register" && (
             <label>
@@ -141,8 +151,11 @@ export function AccountPage() {
           ) && (
             <label>
               Mật khẩu
+              <span className="staff-login-input">
+                <LockKeyhole size={19} strokeWidth={1.6} aria-hidden="true" />
               <input
                 type="password"
+                placeholder="Nhập mật khẩu..."
                 required
                 minLength={mode === "login" ? undefined : 12}
                 autoComplete={
@@ -151,6 +164,7 @@ export function AccountPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              </span>
             </label>
           )}
           {["confirm", "reset-password"].includes(mode) && (
@@ -164,11 +178,11 @@ export function AccountPage() {
               />
             </label>
           )}
-          <button className="button button-primary" disabled={busy}>
+          <button className="staff-login-submit" disabled={busy}>
             {busy ? "Đang xử lý..." : labels[mode]}
           </button>
-          <div className="account-links">
-            {(["login", "register", "confirm", "forgot-password"] as Mode[])
+          <div className="staff-login-links">
+            {(["login", "forgot-password"] as Mode[])
               .filter((v) => v !== mode)
               .map((v) => (
                 <button
